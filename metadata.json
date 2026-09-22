@@ -1,0 +1,6 @@
+{
+  "name": "GramVyapar",
+  "description": "Rural E-Commerce & Entrepreneurship platform empowering Indian farmers and artisans with live mandi rates, farm-to-market sales, and training.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
