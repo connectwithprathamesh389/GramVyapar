@@ -36,11 +36,22 @@ fun DeliveryPartnerScreen(
     onBack: () -> Unit
 ) {
     val orders by viewModel.orders.collectAsState()
+    val user by viewModel.user.collectAsState()
+
+    var selectedOrderForOtp by remember { mutableStateOf<Order?>(null) }
+    var enteredOtp by remember { mutableStateOf("") }
+    var otpError by remember { mutableStateOf<String?>(null) }
+    var deliverySuccessMessage by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Today's Deliveries", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = {
+                    Column {
+                        Text("🚚 Delivery Hub - Buldhana", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text("Partner: ${user.name} • ${user.serviceArea ?: user.village}", fontSize = 11.sp, color = TextSecondary)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -59,14 +70,52 @@ fun DeliveryPartnerScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Text(
-                    text = "Buldhana District Local Deliveries",
-                    fontSize = 13.sp,
-                    color = TextSecondary
-                )
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = SaffronContainer),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = "📍 Buldhana District Local Routing",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = OnSaffronContainer
+                        )
+                        Text(
+                            text = "Service Area: ${user.serviceArea ?: "Buldhana City & Talukas"} • Active Orders: ${orders.count { it.orderStatus != OrderStatus.DELIVERED }}",
+                            fontSize = 12.sp,
+                            color = OnSaffronContainer.copy(alpha = 0.8f)
+                        )
+                    }
+                }
             }
 
-            items(orders) { order ->
+            if (deliverySuccessMessage != null) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = AgriGreenContainer),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("✅", fontSize = 18.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = deliverySuccessMessage ?: "",
+                                color = AgriGreenDark,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            items(orders, key = { it.id }) { order ->
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = RuralSurface),
@@ -75,55 +124,177 @@ fun DeliveryPartnerScreen(
                     Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Order ${order.id}", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            Text("Status: ${order.orderStatus.titleEn}", color = AgriGreenDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Order #${order.id}", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(
+                                        when (order.orderStatus) {
+                                            OrderStatus.DELIVERED -> AgriGreenContainer
+                                            OrderStatus.OUT_FOR_DELIVERY -> SaffronContainer
+                                            else -> Color(0xFFF1F5F9)
+                                        }
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = order.orderStatus.titleEn,
+                                    color = when (order.orderStatus) {
+                                        OrderStatus.DELIVERED -> AgriGreenDark
+                                        OrderStatus.OUT_FOR_DELIVERY -> OnSaffronContainer
+                                        else -> TextPrimary
+                                    },
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
                         }
-                        Text("Customer: ${order.buyerName} • ${order.buyerPhone}", fontSize = 12.sp)
-                        Text("Location: ${order.deliveryAddress}", fontSize = 12.sp, color = TextSecondary)
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("👤 Customer: ${order.buyerName} (${order.buyerPhone})", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("📍 Address: ${order.deliveryAddress}", fontSize = 12.sp, color = TextSecondary)
+                        Text(
+                            text = "💰 Amount: ₹${order.totalAmount.toInt()} (${if (order.isCod) "Cash on Delivery" else "UPI Paid"})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (order.isCod) SaffronAccent else AgriGreenDark
+                        )
 
-                        // Simple Action Buttons: Pickup | Out for Delivery | Delivered
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = { viewModel.updateOrderStatus(order.id, OrderStatus.PREPARING) },
-                                modifier = Modifier.weight(1f).height(38.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AgriGreenContainer, contentColor = AgriGreenDark),
-                                contentPadding = PaddingValues(0.dp)
-                            ) {
-                                Text("Pickup", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Stage Progression buttons
+                        when (order.orderStatus) {
+                            OrderStatus.PLACED, OrderStatus.CONFIRMED -> {
+                                Button(
+                                    onClick = {
+                                        viewModel.updateOrderStatus(order.id, OrderStatus.PREPARING)
+                                        deliverySuccessMessage = "Order #${order.id} accepted for pickup."
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AgriGreenContainer, contentColor = AgriGreenDark)
+                                ) {
+                                    Text("Accept & Pick Up from Farmer", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
-
-                            Button(
-                                onClick = { viewModel.updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY) },
-                                modifier = Modifier.weight(1f).height(38.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = SaffronContainer, contentColor = OnSaffronContainer),
-                                contentPadding = PaddingValues(0.dp)
-                            ) {
-                                Text("Out for Delivery", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            OrderStatus.PREPARING -> {
+                                Button(
+                                    onClick = {
+                                        viewModel.updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY)
+                                        deliverySuccessMessage = "Order #${order.id} is now Out for Delivery."
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = SaffronContainer, contentColor = OnSaffronContainer)
+                                ) {
+                                    Text("Start Route: Out for Delivery", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
-
-                            Button(
-                                onClick = { viewModel.updateOrderStatus(order.id, OrderStatus.DELIVERED) },
-                                modifier = Modifier.weight(1f).height(38.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary),
-                                contentPadding = PaddingValues(0.dp)
-                            ) {
-                                Text("Delivered", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            OrderStatus.OUT_FOR_DELIVERY -> {
+                                Button(
+                                    onClick = {
+                                        selectedOrderForOtp = order
+                                        enteredOtp = ""
+                                        otpError = null
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
+                                ) {
+                                    Icon(Icons.Default.Verified, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Enter Customer OTP & Deliver", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            OrderStatus.DELIVERED -> {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = AgriGreenDark, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Delivered successfully to customer", fontSize = 12.sp, color = AgriGreenDark, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                            OrderStatus.CANCELLED -> {
+                                Text("Order was cancelled", color = RateDownRed, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    // OTP Verification Dialog
+    selectedOrderForOtp?.let { order ->
+        AlertDialog(
+            onDismissRequest = { selectedOrderForOtp = null },
+            title = {
+                Text("Verify Customer OTP", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Ask customer ${order.buyerName} for the 4-digit Delivery OTP generated on their order screen.",
+                        fontSize = 13.sp,
+                        color = TextSecondary
+                    )
+
+                    OutlinedTextField(
+                        value = enteredOtp,
+                        onValueChange = {
+                            if (it.length <= 4 && it.all { char -> char.isDigit() }) {
+                                enteredOtp = it
+                                otpError = null
+                            }
+                        },
+                        label = { Text("4-Digit Delivery OTP") },
+                        placeholder = { Text("e.g. ${order.deliveryOtp}") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Demo helper hint for testing
+                    Text(
+                        text = "💡 For testing: Customer's OTP is: ${order.deliveryOtp}",
+                        fontSize = 11.sp,
+                        color = AgriGreenDark,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    if (otpError != null) {
+                        Text(
+                            text = otpError ?: "",
+                            color = RateDownRed,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val isVerified = viewModel.verifyDeliveryOtp(order.id, enteredOtp)
+                        if (isVerified) {
+                            selectedOrderForOtp = null
+                            deliverySuccessMessage = "Order #${order.id} delivered successfully with verified OTP!"
+                        } else {
+                            otpError = "Incorrect OTP! Please check with customer."
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Confirm Delivery", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedOrderForOtp = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -323,7 +494,10 @@ fun ProfileScreen(
                     ListItem(
                         headlineContent = { Text("Logout", color = RateDownRed, fontWeight = FontWeight.Bold) },
                         leadingContent = { Icon(Icons.Default.Logout, contentDescription = null, tint = RateDownRed) },
-                        modifier = Modifier.clickable { viewModel.navigateTo(AppDestination.LOGIN) }
+                        modifier = Modifier.clickable {
+                            viewModel.logout()
+                            viewModel.navigateTo(AppDestination.LOGIN)
+                        }
                     )
                 }
             }
@@ -499,7 +673,7 @@ fun TrainingAcademyScreen(
     }
 }
 
-// 6. SECTION 18: ADMIN DASHBOARD
+// 6. SECTION 18: ADMIN DASHBOARD (ADMIN-001 Governance)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminOverviewScreen(
@@ -508,11 +682,23 @@ fun AdminOverviewScreen(
 ) {
     val products by viewModel.allProducts.collectAsState()
     val orders by viewModel.orders.collectAsState()
+    val allUsers by viewModel.allUsers.collectAsState()
+
+    var adminTab by remember { mutableStateOf(0) }
+    var selectedOrderForAssign by remember { mutableStateOf<Order?>(null) }
+    var assignSuccessMsg by remember { mutableStateOf<String?>(null) }
+
+    val deliveryBoys = allUsers.filter { it.role == UserRole.DELIVERY }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Admin Governance", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = {
+                    Column {
+                        Text("🛡️ Admin Console (ADMIN-001)", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text("Buldhana District Rural Marketplace", fontSize = 11.sp, color = TextSecondary)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -523,56 +709,301 @@ fun AdminOverviewScreen(
         },
         containerColor = RuralBackground
     ) { innerPadding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item {
-                Text("Buldhana District Marketplace Overview", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            // Admin Subtabs: Overview | Users | Orders | Payments
+            TabRow(
+                selectedTabIndex = adminTab,
+                containerColor = RuralSurface,
+                contentColor = AgriGreenPrimary
+            ) {
+                Tab(
+                    selected = adminTab == 0,
+                    onClick = { adminTab = 0 },
+                    text = { Text("📊 Overview", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                )
+                Tab(
+                    selected = adminTab == 1,
+                    onClick = { adminTab = 1 },
+                    text = { Text("👥 Users (${allUsers.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                )
+                Tab(
+                    selected = adminTab == 2,
+                    onClick = { adminTab = 2 },
+                    text = { Text("📦 Orders (${orders.size})", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                )
+                Tab(
+                    selected = adminTab == 3,
+                    onClick = { adminTab = 3 },
+                    text = { Text("💳 Payments", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                )
             }
 
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+            if (assignSuccessMsg != null) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = AgriGreenContainer),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = AgriGreenContainer)) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Products", fontSize = 11.sp, color = TextSecondary)
-                            Text("${products.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
-                        }
-                    }
-                    Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = SaffronContainer)) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Orders", fontSize = 11.sp, color = TextSecondary)
-                            Text("${orders.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = OnSaffronContainer)
-                        }
-                    }
-                    Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = RuralSurface), border = CardDefaults.outlinedCardBorder()) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("District", fontSize = 11.sp, color = TextSecondary)
-                            Text("Buldhana", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        }
-                    }
+                    Text(
+                        text = assignSuccessMsg ?: "",
+                        color = AgriGreenDark,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(10.dp)
+                    )
                 }
             }
 
-            item {
-                Text("Active Orders across Buldhana Talukas", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            }
+            when (adminTab) {
+                // Tab 0: Overview & Stats
+                0 -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        item {
+                            Text("Buldhana District Summary", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
 
-            items(orders) { order ->
-                Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = RuralSurface)) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("Order ${order.id} - ${order.buyerName}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Text("Delivery: ${order.deliveryAddress}", fontSize = 11.sp, color = TextSecondary)
-                        Text("Status: ${order.orderStatus.titleEn} • Total: ₹${order.totalAmount.toInt()}", fontSize = 11.sp, color = AgriGreenDark, fontWeight = FontWeight.SemiBold)
+                        item {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = AgriGreenContainer)) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text("Products", fontSize = 11.sp, color = TextSecondary)
+                                        Text("${products.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
+                                    }
+                                }
+                                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = SaffronContainer)) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text("Orders", fontSize = 11.sp, color = TextSecondary)
+                                        Text("${orders.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = OnSaffronContainer)
+                                    }
+                                }
+                                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color(0xFFEDE7F6))) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text("Users", fontSize = 11.sp, color = TextSecondary)
+                                        Text("${allUsers.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A148C))
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = RuralSurface),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text("Buldhana APMC Mandis Status", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text("• Buldhana Mandi: Live Rates Synced ✅", fontSize = 12.sp, color = AgriGreenDark)
+                                    Text("• Khamgaon Mandi: Live Rates Synced ✅", fontSize = 12.sp, color = AgriGreenDark)
+                                    Text("• Malkapur Mandi: Live Rates Synced ✅", fontSize = 12.sp, color = AgriGreenDark)
+                                    Text("• Mehkar Mandi: Live Rates Synced ✅", fontSize = 12.sp, color = AgriGreenDark)
+                                    Text("• Shegaon Mandi: Live Rates Synced ✅", fontSize = 12.sp, color = AgriGreenDark)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Tab 1: Users Management
+                1 -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(allUsers, key = { it.id }) { userItem ->
+                            Card(
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = RuralSurface),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(userItem.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .background(
+                                                        when (userItem.role) {
+                                                            UserRole.ADMIN -> Color(0xFFEDE7F6)
+                                                            UserRole.SELLER -> AgriGreenContainer
+                                                            UserRole.DELIVERY -> SaffronContainer
+                                                            else -> Color(0xFFF1F5F9)
+                                                        }
+                                                    )
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = userItem.role.name,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = when (userItem.role) {
+                                                        UserRole.ADMIN -> Color(0xFF4A148C)
+                                                        UserRole.SELLER -> AgriGreenDark
+                                                        UserRole.DELIVERY -> OnSaffronContainer
+                                                        else -> TextPrimary
+                                                    }
+                                                )
+                                            }
+                                        }
+                                        Text("📞 ${userItem.phone} • ✉️ ${userItem.email}", fontSize = 11.sp, color = TextSecondary)
+                                        Text("📍 ${userItem.village}, Buldhana", fontSize = 11.sp, color = TextMuted)
+                                    }
+
+                                    if (userItem.role != UserRole.ADMIN) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Switch(
+                                                checked = userItem.isActive,
+                                                onCheckedChange = { viewModel.toggleUserStatus(userItem.id) },
+                                                colors = SwitchDefaults.colors(checkedThumbColor = AgriGreenPrimary)
+                                            )
+                                            Text(if (userItem.isActive) "Active" else "Blocked", fontSize = 9.sp, color = if (userItem.isActive) AgriGreenDark else RateDownRed)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Tab 2: Orders & Delivery Boy Assignment
+                2 -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(orders, key = { it.id }) { order ->
+                            Card(
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = RuralSurface),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Order #${order.id}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        Text("Status: ${order.orderStatus.titleEn}", color = AgriGreenDark, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    }
+                                    Text("Customer: ${order.buyerName} (${order.buyerPhone})", fontSize = 12.sp)
+                                    Text("Address: ${order.deliveryAddress}", fontSize = 11.sp, color = TextSecondary)
+                                    Text("Total: ₹${order.totalAmount.toInt()} (${if (order.isCod) "COD" else "UPI"})", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+
+                                    if (order.deliveryBoyName != null) {
+                                        Text("🚚 Assigned to: ${order.deliveryBoyName}", fontSize = 11.sp, color = AgriGreenDark, fontWeight = FontWeight.Bold)
+                                    } else {
+                                        OutlinedButton(
+                                            onClick = { selectedOrderForAssign = order },
+                                            modifier = Modifier.fillMaxWidth().height(36.dp),
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Text("Assign Delivery Partner", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Tab 3: Payments Audit
+                3 -> {
+                    val codOrders = orders.filter { it.isCod }
+                    val upiOrders = orders.filter { !it.isCod }
+                    val codTotal = codOrders.sumOf { it.totalAmount }
+                    val upiTotal = upiOrders.sumOf { it.totalAmount }
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        item {
+                            Text("Buldhana Payment Settlements", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+
+                        item {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = SaffronContainer)) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Text("Cash on Delivery", fontSize = 11.sp, color = OnSaffronContainer)
+                                        Text("₹${codTotal.toInt()}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = OnSaffronContainer)
+                                        Text("${codOrders.size} orders", fontSize = 10.sp, color = OnSaffronContainer.copy(alpha = 0.8f))
+                                    }
+                                }
+                                Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = AgriGreenContainer)) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Text("Online UPI (Razorpay)", fontSize = 11.sp, color = AgriGreenDark)
+                                        Text("₹${upiTotal.toInt()}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
+                                        Text("${upiOrders.size} orders", fontSize = 10.sp, color = AgriGreenDark.copy(alpha = 0.8f))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    // Delivery Boy Assignment Dialog
+    selectedOrderForAssign?.let { order ->
+        AlertDialog(
+            onDismissRequest = { selectedOrderForAssign = null },
+            title = { Text("Assign Order #${order.id}", fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Select a Delivery Boy for Buldhana area delivery:")
+                    if (deliveryBoys.isEmpty()) {
+                        Text("No delivery partners registered yet.", color = TextSecondary, fontSize = 12.sp)
+                    } else {
+                        deliveryBoys.forEach { db ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.assignDeliveryBoy(order.id, db.id, db.name)
+                                        assignSuccessMsg = "Assigned Order #${order.id} to ${db.name}"
+                                        selectedOrderForAssign = null
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = RuralSurface),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("🚚", fontSize = 20.sp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(db.name, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text("Area: ${db.serviceArea ?: db.village} • 📞 ${db.phone}", fontSize = 11.sp, color = TextSecondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { selectedOrderForAssign = null }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }

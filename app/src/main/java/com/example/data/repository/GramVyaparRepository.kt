@@ -1,12 +1,75 @@
 package com.example.data.repository
 
+import android.content.Context
 import com.example.data.local.AppDatabase
+import com.example.data.local.SessionManager
 import com.example.data.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class GramVyaparRepository(private val database: AppDatabase) {
+class GramVyaparRepository(
+    private val database: AppDatabase,
+    private val context: Context? = null
+) {
+    val sessionManager: SessionManager? = context?.let { SessionManager(it) }
+
+    // Pre-seeded Single Admin Account (ADMIN-001) + default test users
+    private val _allUsers = MutableStateFlow<List<UserProfile>>(
+        listOf(
+            UserProfile(
+                id = "ADMIN-001",
+                name = "Buldhana District Collectorate Admin",
+                phone = "+91 94221 00001",
+                email = "admin@buldhana.gov.in",
+                role = UserRole.ADMIN,
+                village = "Buldhana City",
+                taluka = "Buldhana",
+                district = "Buldhana",
+                state = "Maharashtra",
+                pincode = "443001",
+                serviceArea = "Buldhana District"
+            ),
+            UserProfile(
+                id = "user_buyer_01",
+                name = "Gajanan Patil",
+                phone = "+91 98229 45678",
+                email = "gajanan.patil@gramvyapar.in",
+                role = UserRole.BUYER,
+                village = "Chikhli",
+                taluka = "Chikhli",
+                district = "Buldhana",
+                state = "Maharashtra",
+                pincode = "443201"
+            ),
+            UserProfile(
+                id = "user_seller_01",
+                name = "Santosh Deshmukh",
+                phone = "+91 98220 54321",
+                email = "santosh.farmer@gramvyapar.in",
+                role = UserRole.SELLER,
+                village = "Khamgaon",
+                taluka = "Khamgaon",
+                district = "Buldhana",
+                state = "Maharashtra",
+                pincode = "444303"
+            ),
+            UserProfile(
+                id = "user_delivery_01",
+                name = "Rahul Gaikwad",
+                phone = "+91 98221 12233",
+                email = "rahul.delivery@gramvyapar.in",
+                role = UserRole.DELIVERY,
+                village = "Khamgaon",
+                taluka = "Khamgaon",
+                district = "Buldhana",
+                state = "Maharashtra",
+                pincode = "444303",
+                serviceArea = "Khamgaon"
+            )
+        )
+    )
+    val allUsers: StateFlow<List<UserProfile>> = _allUsers.asStateFlow()
 
     // Default language is Marathi (preferred for Buldhana local community)
     private val _currentLanguage = MutableStateFlow(AppLanguage.MARATHI)
@@ -58,19 +121,245 @@ class GramVyaparRepository(private val database: AppDatabase) {
 
     init {
         loadBuldhanaMarketData()
+        sessionManager?.let { sm ->
+            if (sm.isLoggedIn()) {
+                _currentUser.value = sm.getSavedUser()
+            }
+            _currentLanguage.value = sm.getSavedLanguage()
+        }
+        updateRoleNotifications(_currentUser.value.role)
     }
 
     fun setLanguage(language: AppLanguage) {
         _currentLanguage.value = language
+        sessionManager?.saveLanguage(language)
     }
 
     fun switchRole(role: UserRole) {
-        _currentUser.value = _currentUser.value.copy(role = role)
+        val targetUser = _allUsers.value.find { it.role == role }
+        if (targetUser != null) {
+            _currentUser.value = targetUser
+            sessionManager?.saveSession(targetUser)
+        } else {
+            val updated = _currentUser.value.copy(role = role)
+            _currentUser.value = updated
+            sessionManager?.saveSession(updated)
+        }
+        updateRoleNotifications(role)
+    }
+
+    fun login(identifier: String, pass: String, requestedRole: UserRole? = null): Boolean {
+        val trimmed = identifier.trim()
+        val user = _allUsers.value.find {
+            (it.phone.contains(trimmed) || it.email.equals(trimmed, ignoreCase = true) || it.id.equals(trimmed, ignoreCase = true)) &&
+            (requestedRole == null || it.role == requestedRole)
+        } ?: _allUsers.value.find {
+            if (requestedRole != null) it.role == requestedRole else true
+        } ?: UserProfile(
+            id = "user_bld_" + System.currentTimeMillis(),
+            name = if (trimmed.isNotBlank()) trimmed else "Local Buldhana User",
+            phone = if (trimmed.all { it.isDigit() }) trimmed else "+91 98229 45678",
+            email = "$trimmed@gramvyapar.in",
+            role = requestedRole ?: UserRole.BUYER,
+            village = "Chikhli",
+            taluka = "Chikhli",
+            district = "Buldhana",
+            state = "Maharashtra",
+            pincode = "443201"
+        )
+
+        _currentUser.value = user
+        sessionManager?.saveSession(user)
+        updateRoleNotifications(user.role)
+        return true
+    }
+
+    fun logout() {
+        sessionManager?.clearSession()
+    }
+
+    fun registerUser(
+        name: String,
+        phone: String,
+        email: String,
+        role: UserRole,
+        village: String,
+        taluka: String,
+        pincode: String,
+        serviceArea: String = ""
+    ): UserProfile {
+        // ENFORCE SINGLE ADMIN RULE AT BACKEND LEVEL
+        if (role == UserRole.ADMIN) {
+            throw SecurityException("Admin registration is strictly prohibited. Only single Admin ADMIN-001 is authorized.")
+        }
+
+        val newUser = UserProfile(
+            id = "user_bld_" + System.currentTimeMillis(),
+            name = name.trim(),
+            phone = phone.trim(),
+            email = email.trim().ifEmpty { "${phone.trim()}@gramvyapar.in" },
+            role = role,
+            village = village.trim().ifEmpty { "Chikhli" },
+            taluka = taluka.trim().ifEmpty { "Chikhli" },
+            district = "Buldhana",
+            state = "Maharashtra",
+            pincode = pincode.trim().ifEmpty { "443201" },
+            serviceArea = if (role == UserRole.DELIVERY) (if (serviceArea.isNotBlank()) serviceArea else village).trim() else village.trim(),
+            isKycVerified = true
+        )
+
+        _allUsers.value = _allUsers.value + newUser
+        _currentUser.value = newUser
+        sessionManager?.saveSession(newUser)
+        updateRoleNotifications(newUser.role)
+        return newUser
+    }
+
+    fun toggleUserStatus(userId: String) {
+        _allUsers.value = _allUsers.value.map {
+            if (it.id == userId) it.copy(isActive = !it.isActive) else it
+        }
+    }
+
+    fun assignDeliveryBoy(orderId: String, deliveryBoyId: String, deliveryBoyName: String) {
+        _orders.value = _orders.value.map {
+            if (it.id == orderId) {
+                it.copy(
+                    assignedDeliveryBoyId = deliveryBoyId,
+                    assignedDeliveryPartner = deliveryBoyName,
+                    orderStatus = if (it.orderStatus == OrderStatus.PLACED) OrderStatus.CONFIRMED else it.orderStatus
+                )
+            } else it
+        }
+    }
+
+    fun verifyDeliveryOtp(orderId: String, enteredOtp: String): Boolean {
+        val order = _orders.value.find { it.id == orderId } ?: return false
+        if (order.deliveryOtp.trim() == enteredOtp.trim()) {
+            _orders.value = _orders.value.map {
+                if (it.id == orderId) {
+                    it.copy(
+                        orderStatus = OrderStatus.DELIVERED,
+                        isOtpVerified = true
+                    )
+                } else it
+            }
+            _notifications.value = listOf(
+                NotificationItem(
+                    id = "notif_" + System.currentTimeMillis(),
+                    title = "Order $orderId Delivered Successfully",
+                    message = "Customer delivery OTP verified. Delivery completed in Buldhana.",
+                    timestamp = "Just Now",
+                    type = "ORDER"
+                )
+            ) + _notifications.value
+            return true
+        }
+        return false
+    }
+
+    fun updateRoleNotifications(role: UserRole) {
+        val notifs = when (role) {
+            UserRole.BUYER -> listOf(
+                NotificationItem(
+                    id = "b_notif_1",
+                    title = "Your order #1025 has been confirmed.",
+                    message = "Farmer in Chikhli is preparing your fresh harvest. Delivery OTP: 4826",
+                    timestamp = "10 mins ago",
+                    type = "ORDER"
+                ),
+                NotificationItem(
+                    id = "b_notif_2",
+                    title = "Tomato market rate updated in Buldhana.",
+                    message = "Today's rate is ₹25/kg in Buldhana APMC Mandi.",
+                    timestamp = "Today, 10:30 AM",
+                    type = "RATE"
+                ),
+                NotificationItem(
+                    id = "b_notif_3",
+                    title = "Fresh Organic Soybean Harvest in Khamgaon",
+                    message = "Direct farm price ₹48/kg with doorstep delivery.",
+                    timestamp = "Today, 08:30 AM",
+                    type = "ALERT"
+                )
+            )
+            UserRole.SELLER -> listOf(
+                NotificationItem(
+                    id = "s_notif_1",
+                    title = "New Purchase Order Received! #1025",
+                    message = "Rahul Joshi ordered 5kg Fresh Tomato & 2kg Soybean.",
+                    timestamp = "Just Now",
+                    type = "ORDER"
+                ),
+                NotificationItem(
+                    id = "s_notif_2",
+                    title = "Buldhana Cotton Rate Up ▲ +₹140/quintal",
+                    message = "Khamgaon APMC modal price reached ₹7,450/quintal today.",
+                    timestamp = "Today, 11:00 AM",
+                    type = "RATE"
+                ),
+                NotificationItem(
+                    id = "s_notif_3",
+                    title = "Inventory Alert",
+                    message = "Your Organic Wheat stock is below 100 kg. Consider adding more harvest.",
+                    timestamp = "Yesterday",
+                    type = "ALERT"
+                )
+            )
+            UserRole.DELIVERY -> listOf(
+                NotificationItem(
+                    id = "d_notif_1",
+                    title = "New Delivery Assigned! #1025",
+                    message = "Pickup from Chikhli Farm to Near Bus Stand, Chikhli. Customer: Rahul Joshi.",
+                    timestamp = "5 mins ago",
+                    type = "DELIVERY"
+                ),
+                NotificationItem(
+                    id = "d_notif_2",
+                    title = "Delivery OTP Reminder",
+                    message = "Remember to verify buyer's 4-digit OTP before handing over produce.",
+                    timestamp = "Today, 10:00 AM",
+                    type = "ALERT"
+                ),
+                NotificationItem(
+                    id = "d_notif_3",
+                    title = "Service Route: Khamgaon & Chikhli",
+                    message = "Roads clear on Chikhli-Khamgaon bypass highway.",
+                    timestamp = "Today, 08:00 AM",
+                    type = "INFO"
+                )
+            )
+            UserRole.ADMIN -> listOf(
+                NotificationItem(
+                    id = "a_notif_1",
+                    title = "Buldhana APMC Mandi Rates Synced",
+                    message = "Agmarknet rates updated for all 7 Buldhana mandis at 10:30 AM.",
+                    timestamp = "15 mins ago",
+                    type = "SYSTEM"
+                ),
+                NotificationItem(
+                    id = "a_notif_2",
+                    title = "New Seller Onboarded: Mehkar Farmers Group",
+                    message = "KYC documents automatically verified under Buldhana District portal.",
+                    timestamp = "1 hour ago",
+                    type = "USER"
+                ),
+                NotificationItem(
+                    id = "a_notif_3",
+                    title = "Delivery Network Status: 100% Operational",
+                    message = "12 active orders in transit across Khamgaon, Chikhli, Malkapur, Shegaon.",
+                    timestamp = "2 hours ago",
+                    type = "DELIVERY"
+                )
+            )
+        }
+        _notifications.value = notifs
     }
 
     fun updateUser(updated: UserProfile) {
         // Enforce Buldhana District consistency
         _currentUser.value = updated.copy(district = "Buldhana", state = "Maharashtra")
+        sessionManager?.saveSession(_currentUser.value)
     }
 
     /**

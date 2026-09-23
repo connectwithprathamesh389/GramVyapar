@@ -11,9 +11,9 @@ import org.junit.Test
 class ExampleUnitTest {
   @Test
   fun testLocalizationStrings() {
-    assertEquals("GramVyapar", AppStrings.get("app_name", AppLanguage.ENGLISH))
-    assertEquals("ग्रामव्यापार", AppStrings.get("app_name", AppLanguage.HINDI))
-    assertEquals("ग्रामव्यापार", AppStrings.get("app_name", AppLanguage.MARATHI))
+    assertEquals("Buldhana Bazaar", AppStrings.get("app_name", AppLanguage.ENGLISH))
+    assertEquals("बुलढाणा बाजार", AppStrings.get("app_name", AppLanguage.HINDI))
+    assertEquals("बुलढाणा बाजार", AppStrings.get("app_name", AppLanguage.MARATHI))
 
     assertEquals("Home", AppStrings.get("nav_home", AppLanguage.ENGLISH))
     assertEquals("होम", AppStrings.get("nav_home", AppLanguage.HINDI))

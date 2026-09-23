@@ -73,6 +73,7 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
     // Repository Flows
     val language = repository.currentLanguage
     val user = repository.currentUser
+    val allUsers = repository.allUsers
     val allProducts = repository.products
     val cart = repository.cart
     val mandiRates = repository.mandiRates
@@ -81,6 +82,43 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
     val trainingModules = repository.trainingModules
     val notifications = repository.notifications
     val isMandiServiceOnline = repository.isMandiServiceOnline
+
+    fun isLoggedIn(): Boolean = repository.sessionManager?.isLoggedIn() ?: false
+    fun isFirstLaunch(): Boolean = repository.sessionManager?.isFirstLaunch() ?: false
+
+    fun login(identifier: String, pass: String, requestedRole: UserRole? = null): Boolean {
+        return repository.login(identifier, pass, requestedRole)
+    }
+
+    fun logout() {
+        repository.logout()
+        _currentDestination.value = AppDestination.LOGIN
+    }
+
+    fun registerUser(
+        name: String,
+        phone: String,
+        email: String,
+        role: UserRole,
+        village: String,
+        taluka: String,
+        pincode: String,
+        serviceArea: String = ""
+    ): UserProfile {
+        return repository.registerUser(name, phone, email, role, village, taluka, pincode, serviceArea)
+    }
+
+    fun verifyDeliveryOtp(orderId: String, otpInput: String): Boolean {
+        return repository.verifyDeliveryOtp(orderId, otpInput)
+    }
+
+    fun assignDeliveryBoy(orderId: String, deliveryBoyId: String, deliveryBoyName: String) {
+        repository.assignDeliveryBoy(orderId, deliveryBoyId, deliveryBoyName)
+    }
+
+    fun toggleUserStatus(userId: String) {
+        repository.toggleUserStatus(userId)
+    }
 
     data class FilterCriteria(
         val query: String = "",

@@ -152,21 +152,55 @@ fun GramVyaparTopAppBar(
                 )
             }
 
-            IconButton(
-                onClick = onCartClick,
-                modifier = Modifier.testTag("top_app_bar_cart_btn")
-            ) {
-                BadgedBox(badge = {
-                    if (cartItemCount > 0) {
-                        Badge(containerColor = SaffronAccent) {
-                            Text("$cartItemCount")
+            // Show Cart ONLY for Buyer
+            if (user.role == UserRole.BUYER) {
+                IconButton(
+                    onClick = onCartClick,
+                    modifier = Modifier.testTag("top_app_bar_cart_btn")
+                ) {
+                    BadgedBox(badge = {
+                        if (cartItemCount > 0) {
+                            Badge(containerColor = SaffronAccent) {
+                                Text("$cartItemCount")
+                            }
                         }
+                    }) {
+                        Icon(
+                            Icons.Default.ShoppingCart,
+                            contentDescription = "Cart",
+                            tint = AgriGreenDark
+                        )
                     }
-                }) {
-                    Icon(
-                        Icons.Default.ShoppingCart,
-                        contentDescription = "Cart",
-                        tint = AgriGreenDark
+                }
+            } else {
+                // Role Badge indicator
+                Box(
+                    modifier = Modifier
+                        .padding(start = 4.dp, end = 8.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(when (user.role) {
+                            UserRole.SELLER -> AgriGreenContainer
+                            UserRole.DELIVERY -> SaffronContainer
+                            UserRole.ADMIN -> Color(0xFFEDE7F6)
+                            else -> AgriGreenContainer
+                        })
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = when (user.role) {
+                            UserRole.SELLER -> "🌾 Farmer"
+                            UserRole.DELIVERY -> "🚚 Delivery"
+                            UserRole.ADMIN -> "🛡️ Admin"
+                            else -> ""
+                        },
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when (user.role) {
+                            UserRole.SELLER -> AgriGreenDark
+                            UserRole.DELIVERY -> OnSaffronContainer
+                            UserRole.ADMIN -> Color(0xFF4A148C)
+                            else -> AgriGreenDark
+                        }
                     )
                 }
             }
@@ -176,9 +210,11 @@ fun GramVyaparTopAppBar(
 }
 
 /**
- * 4-Tab Bottom Navigation strictly adhering to the requested user specification:
- * BUYER: 1. Home, 2. Cart, 3. Orders, 4. Profile
- * SELLER: 1. Home (My Products), 2. Add Product, 3. Orders, 4. Profile
+ * Clean Bottom Navigation based on user role:
+ * BUYER: 0. Home | 1. Cart | 2. Orders | 3. Profile
+ * SELLER: 0. Home (My Products) | 1. Add Product | 2. Orders | 3. Profile
+ * DELIVERY: 0. Deliveries | 1. Notifications | 2. Profile
+ * ADMIN: 0. Dashboard | 1. Users | 2. Orders | 3. Profile
  */
 @Composable
 fun GramVyaparBottomNavBar(
@@ -192,122 +228,225 @@ fun GramVyaparBottomNavBar(
         containerColor = RuralSurface,
         tonalElevation = 8.dp
     ) {
-        if (role == UserRole.SELLER) {
-            // SELLER TAB 0: 🏠 Home (My Products)
-            NavigationBarItem(
-                selected = activeTab == 0,
-                onClick = { onTabSelected(0) },
-                icon = {
-                    Icon(
-                        if (activeTab == 0) Icons.Filled.Home else Icons.Outlined.Home,
-                        contentDescription = "My Products"
-                    )
-                },
-                label = { Text(AppStrings.get("nav_home", lang), fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
-            )
-
-            // SELLER TAB 1: ➕ Add Product
-            NavigationBarItem(
-                selected = activeTab == 1,
-                onClick = { onTabSelected(1) },
-                icon = {
-                    Icon(
-                        if (activeTab == 1) Icons.Filled.AddCircle else Icons.Outlined.AddCircle,
-                        contentDescription = "Add Product"
-                    )
-                },
-                label = { Text(AppStrings.get("nav_add_product", lang), fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
-            )
-
-            // SELLER TAB 2: 📦 Orders
-            NavigationBarItem(
-                selected = activeTab == 2,
-                onClick = { onTabSelected(2) },
-                icon = {
-                    Icon(
-                        if (activeTab == 2) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
-                        contentDescription = "Orders"
-                    )
-                },
-                label = { Text(AppStrings.get("nav_orders", lang), fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
-            )
-
-            // SELLER TAB 3: 👤 Profile
-            NavigationBarItem(
-                selected = activeTab == 3,
-                onClick = { onTabSelected(3) },
-                icon = {
-                    Icon(
-                        if (activeTab == 3) Icons.Filled.Person else Icons.Outlined.Person,
-                        contentDescription = "Profile"
-                    )
-                },
-                label = { Text(AppStrings.get("nav_profile", lang), fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
-            )
-        } else {
-            // BUYER TAB 0: 🏠 Home
-            NavigationBarItem(
-                selected = activeTab == 0,
-                onClick = { onTabSelected(0) },
-                icon = {
-                    Icon(
-                        if (activeTab == 0) Icons.Filled.Home else Icons.Outlined.Home,
-                        contentDescription = "Home"
-                    )
-                },
-                label = { Text(AppStrings.get("nav_home", lang), fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
-            )
-
-            // BUYER TAB 1: 🛒 Cart
-            NavigationBarItem(
-                selected = activeTab == 1,
-                onClick = { onTabSelected(1) },
-                icon = {
-                    BadgedBox(badge = {
-                        if (cartItemCount > 0) Badge(containerColor = SaffronAccent) { Text("$cartItemCount") }
-                    }) {
+        when (role) {
+            UserRole.SELLER -> {
+                // SELLER TAB 0: 🏠 Home (My Products)
+                NavigationBarItem(
+                    selected = activeTab == 0,
+                    onClick = { onTabSelected(0) },
+                    icon = {
                         Icon(
-                            if (activeTab == 1) Icons.Filled.ShoppingCart else Icons.Outlined.ShoppingCart,
-                            contentDescription = "Cart"
+                            if (activeTab == 0) Icons.Filled.Home else Icons.Outlined.Home,
+                            contentDescription = "My Products"
                         )
-                    }
-                },
-                label = { Text(AppStrings.get("nav_cart", lang), fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
-            )
+                    },
+                    label = { Text(AppStrings.get("nav_home", lang), fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
+                )
 
-            // BUYER TAB 2: 📦 Orders
-            NavigationBarItem(
-                selected = activeTab == 2,
-                onClick = { onTabSelected(2) },
-                icon = {
-                    Icon(
-                        if (activeTab == 2) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
-                        contentDescription = "Orders"
-                    )
-                },
-                label = { Text(AppStrings.get("nav_orders", lang), fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
-            )
+                // SELLER TAB 1: ➕ Add Product
+                NavigationBarItem(
+                    selected = activeTab == 1,
+                    onClick = { onTabSelected(1) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 1) Icons.Filled.AddCircle else Icons.Outlined.AddCircle,
+                            contentDescription = "Add Product"
+                        )
+                    },
+                    label = { Text(AppStrings.get("nav_add_product", lang), fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
+                )
 
-            // BUYER TAB 3: 👤 Profile
-            NavigationBarItem(
-                selected = activeTab == 3,
-                onClick = { onTabSelected(3) },
-                icon = {
-                    Icon(
-                        if (activeTab == 3) Icons.Filled.Person else Icons.Outlined.Person,
-                        contentDescription = "Profile"
-                    )
-                },
-                label = { Text(AppStrings.get("nav_profile", lang), fontSize = 11.sp) },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
-            )
+                // SELLER TAB 2: 📦 Orders
+                NavigationBarItem(
+                    selected = activeTab == 2,
+                    onClick = { onTabSelected(2) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 2) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
+                            contentDescription = "Orders"
+                        )
+                    },
+                    label = { Text(AppStrings.get("nav_orders", lang), fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
+                )
+
+                // SELLER TAB 3: 👤 Profile
+                NavigationBarItem(
+                    selected = activeTab == 3,
+                    onClick = { onTabSelected(3) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 3) Icons.Filled.Person else Icons.Outlined.Person,
+                            contentDescription = "Profile"
+                        )
+                    },
+                    label = { Text(AppStrings.get("nav_profile", lang), fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
+                )
+            }
+            UserRole.DELIVERY -> {
+                // DELIVERY TAB 0: 🚚 Deliveries
+                NavigationBarItem(
+                    selected = activeTab == 0,
+                    onClick = { onTabSelected(0) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 0) Icons.Filled.LocalShipping else Icons.Outlined.LocalShipping,
+                            contentDescription = "Deliveries"
+                        )
+                    },
+                    label = { Text("Deliveries", fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = SaffronContainer)
+                )
+
+                // DELIVERY TAB 1: 🔔 Notifications
+                NavigationBarItem(
+                    selected = activeTab == 1,
+                    onClick = { onTabSelected(1) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 1) Icons.Filled.Notifications else Icons.Outlined.Notifications,
+                            contentDescription = "Alerts"
+                        )
+                    },
+                    label = { Text("Alerts", fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = SaffronContainer)
+                )
+
+                // DELIVERY TAB 2: 👤 Profile
+                NavigationBarItem(
+                    selected = activeTab == 2,
+                    onClick = { onTabSelected(2) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 2) Icons.Filled.Person else Icons.Outlined.Person,
+                            contentDescription = "Profile"
+                        )
+                    },
+                    label = { Text(AppStrings.get("nav_profile", lang), fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = SaffronContainer)
+                )
+            }
+            UserRole.ADMIN -> {
+                // ADMIN TAB 0: 📊 Dashboard
+                NavigationBarItem(
+                    selected = activeTab == 0,
+                    onClick = { onTabSelected(0) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 0) Icons.Filled.Dashboard else Icons.Outlined.Dashboard,
+                            contentDescription = "Dashboard"
+                        )
+                    },
+                    label = { Text("Dashboard", fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFEDE7F6))
+                )
+
+                // ADMIN TAB 1: 👥 Users
+                NavigationBarItem(
+                    selected = activeTab == 1,
+                    onClick = { onTabSelected(1) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 1) Icons.Filled.Group else Icons.Outlined.Group,
+                            contentDescription = "Users"
+                        )
+                    },
+                    label = { Text("Users", fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFEDE7F6))
+                )
+
+                // ADMIN TAB 2: 📦 Orders & Deliveries
+                NavigationBarItem(
+                    selected = activeTab == 2,
+                    onClick = { onTabSelected(2) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 2) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
+                            contentDescription = "Orders"
+                        )
+                    },
+                    label = { Text("Orders", fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFEDE7F6))
+                )
+
+                // ADMIN TAB 3: 👤 Profile
+                NavigationBarItem(
+                    selected = activeTab == 3,
+                    onClick = { onTabSelected(3) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 3) Icons.Filled.Person else Icons.Outlined.Person,
+                            contentDescription = "Console"
+                        )
+                    },
+                    label = { Text("Console", fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = Color(0xFFEDE7F6))
+                )
+            }
+            UserRole.BUYER -> {
+                // BUYER TAB 0: 🏠 Home
+                NavigationBarItem(
+                    selected = activeTab == 0,
+                    onClick = { onTabSelected(0) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 0) Icons.Filled.Home else Icons.Outlined.Home,
+                            contentDescription = "Home"
+                        )
+                    },
+                    label = { Text(AppStrings.get("nav_home", lang), fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
+                )
+
+                // BUYER TAB 1: 🛒 Cart
+                NavigationBarItem(
+                    selected = activeTab == 1,
+                    onClick = { onTabSelected(1) },
+                    icon = {
+                        BadgedBox(badge = {
+                            if (cartItemCount > 0) Badge(containerColor = SaffronAccent) { Text("$cartItemCount") }
+                        }) {
+                            Icon(
+                                if (activeTab == 1) Icons.Filled.ShoppingCart else Icons.Outlined.ShoppingCart,
+                                contentDescription = "Cart"
+                            )
+                        }
+                    },
+                    label = { Text(AppStrings.get("nav_cart", lang), fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
+                )
+
+                // BUYER TAB 2: 📦 Orders
+                NavigationBarItem(
+                    selected = activeTab == 2,
+                    onClick = { onTabSelected(2) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 2) Icons.AutoMirrored.Filled.ReceiptLong else Icons.AutoMirrored.Outlined.ReceiptLong,
+                            contentDescription = "Orders"
+                        )
+                    },
+                    label = { Text(AppStrings.get("nav_orders", lang), fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
+                )
+
+                // BUYER TAB 3: 👤 Profile
+                NavigationBarItem(
+                    selected = activeTab == 3,
+                    onClick = { onTabSelected(3) },
+                    icon = {
+                        Icon(
+                            if (activeTab == 3) Icons.Filled.Person else Icons.Outlined.Person,
+                            contentDescription = "Profile"
+                        )
+                    },
+                    label = { Text(AppStrings.get("nav_profile", lang), fontSize = 11.sp) },
+                    colors = NavigationBarItemDefaults.colors(indicatorColor = AgriGreenContainer)
+                )
+            }
         }
     }
 }

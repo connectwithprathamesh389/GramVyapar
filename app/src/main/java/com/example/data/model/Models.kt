@@ -24,6 +24,8 @@ data class UserProfile(
     val district: String = "Buldhana",
     val state: String = "Maharashtra",
     val pincode: String = "443201",
+    val serviceArea: String = "Chikhli",
+    val isActive: Boolean = true,
     val isKycVerified: Boolean = true,
     val aadhaarMasked: String = "XXXX-XXXX-7821",
     val panNumber: String = "ABCDP1234F",
@@ -114,8 +116,13 @@ data class Order(
     val orderStatus: OrderStatus,
     val deliveryAddress: String,
     val deliveryOtp: String = "4826",
-    val assignedDeliveryPartner: String = "Santosh Wankhede (Buldhana Express)"
-)
+    val assignedDeliveryPartner: String = "Santosh Wankhede (Buldhana Express)",
+    val assignedDeliveryBoyId: String? = null,
+    val isOtpVerified: Boolean = false
+) {
+    val isCod: Boolean get() = paymentMethod.contains("COD", ignoreCase = true) || paymentMethod.contains("CASH", ignoreCase = true)
+    val deliveryBoyName: String? get() = if (assignedDeliveryPartner.isNotBlank()) assignedDeliveryPartner else null
+}
 
 data class Artisan(
     val id: String,
