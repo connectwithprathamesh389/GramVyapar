@@ -24,10 +24,10 @@ val SoilBrown = Color(0xFF5D4037)
 // Background & Surface
 val RuralBackground = Color(0xFFF8FBF8)
 val RuralSurface = Color(0xFFFFFFFF)
-val RuralCardBorder = Color(0xFFE0E5DC)
-val TextPrimary = Color(0xFF111827) // Deep Charcoal / Near Black
-val TextSecondary = Color(0xFF1F2937) // Very Dark Gray for high contrast
-val TextMuted = Color(0xFF374151) // Dark Slate instead of pale gray
+val RuralCardBorder = Color(0xFFCCCCCC)
+val TextPrimary = Color(0xFF000000) // Pure Black
+val TextSecondary = Color(0xFF111827) // High contrast dark charcoal
+val TextMuted = Color(0xFF1F2937) // High contrast dark text, no faded gray
 
 // Status Colors
 val RateUpGreen = Color(0xFF2E7D32)

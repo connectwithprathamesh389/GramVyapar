@@ -109,7 +109,7 @@ fun SplashScreen(
             Text(
                 text = "Farm-to-Market E-Commerce & Rural Entrepreneurship",
                 fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.85f),
+                color = Color.White,
                 textAlign = TextAlign.Center
             )
 
@@ -280,12 +280,10 @@ fun LoginScreen(
     onForgotPasswordClick: () -> Unit
 ) {
     val lang by viewModel.language.collectAsState()
-    val user by viewModel.user.collectAsState()
-    var username by remember { mutableStateOf("9822054321") }
+    var username by remember { mutableStateOf("9822945678") }
     var password by remember { mutableStateOf("gram1234") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var rememberMe by remember { mutableStateOf(true) }
-    var selectedRole by remember { mutableStateOf(user.role) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
@@ -327,70 +325,76 @@ fun LoginScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Quick Role Switcher demo tab for testing all 4 roles instantly
+            // Quick autofill chips for fast demo testing
             Text(
-                text = "Login as Role:",
-                fontSize = 12.sp,
+                text = "Fast Test Login (Autofill Credentials):",
+                fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = TextSecondary
             )
             Spacer(modifier = Modifier.height(6.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                UserRole.values().forEach { role ->
-                    val isSel = selectedRole == role
-                    OutlinedButton(
-                        onClick = {
-                            selectedRole = role
-                            username = when (role) {
-                                UserRole.BUYER -> "9822945678"
-                                UserRole.SELLER -> "9822054321"
-                                UserRole.DELIVERY -> "9822112233"
-                                UserRole.ADMIN -> "ADMIN-001"
-                            }
-                            password = when (role) {
-                                UserRole.ADMIN -> "admin123"
-                                else -> "gram1234"
-                            }
-                            errorMsg = null
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(2.dp),
-                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (isSel) AgriGreenPrimary else Color.Transparent,
-                            contentColor = if (isSel) Color.White else TextPrimary
-                        ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = Brush.horizontalGradient(listOf(AgriGreenPrimary, AgriGreenLight))
-                        )
-                    ) {
-                        Text(
-                            text = when (role) {
-                                UserRole.BUYER -> "Buyer"
-                                UserRole.SELLER -> "Farmer"
-                                UserRole.DELIVERY -> "Delivery"
-                                UserRole.ADMIN -> "Admin"
-                            },
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                OutlinedButton(
+                    onClick = {
+                        username = "9822945678"
+                        password = "gram1234"
+                        errorMsg = null
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("🛒 Buyer", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                }
+                OutlinedButton(
+                    onClick = {
+                        username = "9822054321"
+                        password = "gram1234"
+                        errorMsg = null
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("🌾 Farmer", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
+                }
+                OutlinedButton(
+                    onClick = {
+                        username = "9822112233"
+                        password = "gram1234"
+                        errorMsg = null
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("🚚 Delivery", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = OnSaffronContainer)
+                }
+                OutlinedButton(
+                    onClick = {
+                        username = "ADMIN-001"
+                        password = "admin123"
+                        errorMsg = null
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("🛡️ Admin", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4A148C))
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it; errorMsg = null },
-                label = { Text(if (selectedRole == UserRole.ADMIN) "Admin ID (ADMIN-001) / Mobile" else AppStrings.get("email_or_phone", lang)) },
+                label = { Text("Mobile Number / Email / Admin ID") },
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                 singleLine = true,
                 modifier = Modifier
@@ -464,10 +468,18 @@ fun LoginScreen(
             Button(
                 onClick = {
                     if (username.isBlank() || password.isBlank()) {
-                        errorMsg = "Please enter valid mobile/email and password"
+                        errorMsg = "Please enter valid credentials"
                     } else {
-                        viewModel.login(username, password, selectedRole)
-                        onLoginSuccess()
+                        try {
+                            val success = viewModel.login(username.trim(), password.trim())
+                            if (success) {
+                                onLoginSuccess()
+                            } else {
+                                errorMsg = "Invalid credentials. Please verify your mobile or password."
+                            }
+                        } catch (e: Exception) {
+                            errorMsg = e.message ?: "Authentication failed"
+                        }
                     }
                 },
                 modifier = Modifier

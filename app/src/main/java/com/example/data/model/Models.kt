@@ -13,6 +13,108 @@ enum class UserRole(val displayName: String) {
     ADMIN("Admin / व्यवस्थापक")
 }
 
+data class UserPermissions(
+    // Common / General Access
+    val profile: Boolean = true,
+    val notifications: Boolean = true,
+    val marketRates: Boolean = true,
+
+    // Buyer Permissions
+    val shopping: Boolean = true,
+    val cart: Boolean = true,
+    val checkout: Boolean = true,
+    val orders: Boolean = true,
+    val payments: Boolean = true,
+
+    // Seller Permissions
+    val sellerDashboard: Boolean = false,
+    val manageProducts: Boolean = false,
+    val addProduct: Boolean = false,
+    val sellerOrders: Boolean = false,
+
+    // Delivery Permissions
+    val deliveryManagement: Boolean = false,
+    val deliveryOtp: Boolean = false,
+
+    // Admin Permissions
+    val adminGovernance: Boolean = false
+) {
+    companion object {
+        fun defaultForRole(role: UserRole): UserPermissions {
+            return when (role) {
+                UserRole.BUYER -> UserPermissions(
+                    profile = true,
+                    notifications = true,
+                    marketRates = true,
+                    shopping = true,
+                    cart = true,
+                    checkout = true,
+                    orders = true,
+                    payments = true,
+                    sellerDashboard = false,
+                    manageProducts = false,
+                    addProduct = false,
+                    sellerOrders = false,
+                    deliveryManagement = false,
+                    deliveryOtp = false,
+                    adminGovernance = false
+                )
+                UserRole.SELLER -> UserPermissions(
+                    profile = true,
+                    notifications = true,
+                    marketRates = true,
+                    shopping = false,
+                    cart = false,
+                    checkout = false,
+                    orders = false,
+                    payments = false,
+                    sellerDashboard = true,
+                    manageProducts = true,
+                    addProduct = true,
+                    sellerOrders = true,
+                    deliveryManagement = false,
+                    deliveryOtp = false,
+                    adminGovernance = false
+                )
+                UserRole.DELIVERY -> UserPermissions(
+                    profile = true,
+                    notifications = true,
+                    marketRates = false,
+                    shopping = false,
+                    cart = false,
+                    checkout = false,
+                    orders = false,
+                    payments = false,
+                    sellerDashboard = false,
+                    manageProducts = false,
+                    addProduct = false,
+                    sellerOrders = false,
+                    deliveryManagement = true,
+                    deliveryOtp = true,
+                    adminGovernance = false
+                )
+                UserRole.ADMIN -> UserPermissions(
+                    profile = true,
+                    notifications = true,
+                    marketRates = true,
+                    shopping = false,
+                    cart = false,
+                    checkout = false,
+                    orders = false,
+                    payments = false,
+                    sellerDashboard = false,
+                    manageProducts = false,
+                    addProduct = false,
+                    sellerOrders = false,
+                    deliveryManagement = false,
+                    deliveryOtp = false,
+                    adminGovernance = true
+                )
+            }
+        }
+    }
+}
+
 data class UserProfile(
     val id: String = "user_bld_01",
     val name: String = "Gajanan Patil",
@@ -29,7 +131,8 @@ data class UserProfile(
     val isKycVerified: Boolean = true,
     val aadhaarMasked: String = "XXXX-XXXX-7821",
     val panNumber: String = "ABCDP1234F",
-    val walletBalance: Double = 1450.0
+    val walletBalance: Double = 1450.0,
+    val permissions: UserPermissions = UserPermissions.defaultForRole(role)
 )
 
 enum class ProductCategory(val titleEn: String, val titleHi: String, val titleMr: String, val iconEmoji: String) {

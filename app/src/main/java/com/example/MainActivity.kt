@@ -53,6 +53,15 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
     val activeTab by viewModel.activeTab.collectAsState()
     val selectedProduct by viewModel.selectedProduct.collectAsState()
     val lastOrder by viewModel.lastPlacedOrder.collectAsState()
+    val actionMessage by viewModel.actionMessage.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(actionMessage) {
+        actionMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearActionMessage()
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -164,35 +173,53 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
                     )
                 }
                 AppDestination.SELLER_DASHBOARD -> {
-                    SellerDashboardScreen(
-                        viewModel = viewModel,
-                        onNavigateToAddProduct = { viewModel.navigateTo(AppDestination.ADD_PRODUCT) },
-                        onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
-                    )
+                    if (user.role == UserRole.SELLER || user.role == UserRole.ADMIN) {
+                        SellerDashboardScreen(
+                            viewModel = viewModel,
+                            onNavigateToAddProduct = { viewModel.navigateTo(AppDestination.ADD_PRODUCT) },
+                            onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
+                        )
+                    } else {
+                        viewModel.navigateTo(AppDestination.MAIN_APP)
+                    }
                 }
                 AppDestination.ADD_PRODUCT -> {
-                    AddProductScreen(
-                        viewModel = viewModel,
-                        onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
-                    )
+                    if ((user.role == UserRole.SELLER && user.permissions.addProduct) || user.role == UserRole.ADMIN) {
+                        AddProductScreen(
+                            viewModel = viewModel,
+                            onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
+                        )
+                    } else {
+                        viewModel.navigateTo(AppDestination.MAIN_APP)
+                    }
                 }
                 AppDestination.DELIVERY_DASHBOARD -> {
-                    DeliveryPartnerScreen(
-                        viewModel = viewModel,
-                        onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
-                    )
+                    if (user.role == UserRole.DELIVERY || user.role == UserRole.ADMIN) {
+                        DeliveryPartnerScreen(
+                            viewModel = viewModel,
+                            onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
+                        )
+                    } else {
+                        viewModel.navigateTo(AppDestination.MAIN_APP)
+                    }
                 }
                 AppDestination.ADMIN_DASHBOARD -> {
-                    AdminOverviewScreen(
-                        viewModel = viewModel,
-                        onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
-                    )
+                    if (user.role == UserRole.ADMIN) {
+                        AdminOverviewScreen(
+                            viewModel = viewModel,
+                            onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
+                        )
+                    } else {
+                        viewModel.navigateTo(AppDestination.MAIN_APP)
+                    }
                 }
                 AppDestination.MANDI_RATES -> {
                     MandiRatesScreen(
                         viewModel = viewModel,
                         onSellProduceClick = {
-                            viewModel.navigateTo(AppDestination.ADD_PRODUCT)
+                            if (user.role == UserRole.SELLER) {
+                                viewModel.navigateTo(AppDestination.ADD_PRODUCT)
+                            }
                         },
                         onBack = {
                             viewModel.navigateTo(AppDestination.MAIN_APP)
@@ -201,6 +228,7 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
                 }
                 AppDestination.MAIN_APP -> {
                     Scaffold(
+                        snackbarHost = { SnackbarHost(snackbarHostState) },
                         topBar = {
                             GramVyaparTopAppBar(
                                 lang = lang,
@@ -257,8 +285,8 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
                                             onNavigateToLearnAndGrow = { viewModel.navigateTo(AppDestination.TRAINING_DETAIL) },
                                             onNavigateToArtisans = { viewModel.navigateTo(AppDestination.ARTISAN_DETAIL) },
                                             onNavigateToSellerDashboard = { viewModel.setActiveTab(0) },
-                                            onNavigateToDeliveries = { viewModel.navigateTo(AppDestination.DELIVERY_DASHBOARD) },
-                                            onNavigateToAdmin = { viewModel.navigateTo(AppDestination.ADMIN_DASHBOARD) }
+                                            onNavigateToDeliveries = { },
+                                            onNavigateToAdmin = { }
                                         )
                                     }
                                 }
@@ -291,17 +319,20 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
                                         // Admin Tab 0: 📊 Dashboard & Governance
                                         0 -> AdminOverviewScreen(
                                             viewModel = viewModel,
-                                            onBack = { }
+                                            onBack = { },
+                                            initialTab = 0
                                         )
                                         // Admin Tab 1: 👥 Users Management
                                         1 -> AdminOverviewScreen(
                                             viewModel = viewModel,
-                                            onBack = { }
+                                            onBack = { },
+                                            initialTab = 1
                                         )
                                         // Admin Tab 2: 📦 Orders & Delivery Assignment
                                         2 -> AdminOverviewScreen(
                                             viewModel = viewModel,
-                                            onBack = { }
+                                            onBack = { },
+                                            initialTab = 2
                                         )
                                         // Admin Tab 3: 👤 Console Profile
                                         else -> ProfileScreen(
@@ -344,9 +375,9 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
                                             onNavigateToOrders = { viewModel.setActiveTab(2) },
                                             onNavigateToLearnAndGrow = { viewModel.navigateTo(AppDestination.TRAINING_DETAIL) },
                                             onNavigateToArtisans = { viewModel.navigateTo(AppDestination.ARTISAN_DETAIL) },
-                                            onNavigateToSellerDashboard = { viewModel.navigateTo(AppDestination.SELLER_DASHBOARD) },
-                                            onNavigateToDeliveries = { viewModel.navigateTo(AppDestination.DELIVERY_DASHBOARD) },
-                                            onNavigateToAdmin = { viewModel.navigateTo(AppDestination.ADMIN_DASHBOARD) }
+                                            onNavigateToSellerDashboard = { },
+                                            onNavigateToDeliveries = { },
+                                            onNavigateToAdmin = { }
                                         )
                                     }
                                 }

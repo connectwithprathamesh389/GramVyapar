@@ -85,7 +85,7 @@ fun DeliveryPartnerScreen(
                         Text(
                             text = "Service Area: ${user.serviceArea ?: "Buldhana City & Talukas"} • Active Orders: ${orders.count { it.orderStatus != OrderStatus.DELIVERED }}",
                             fontSize = 12.sp,
-                            color = OnSaffronContainer.copy(alpha = 0.8f)
+                            color = OnSaffronContainer
                         )
                     }
                 }
@@ -353,38 +353,41 @@ fun ProfileScreen(
                 }
             }
 
-            // Switch Role (Clean quick tester)
-            Text("Switch Role (Test Buyer, Seller, Delivery, Admin):", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            // Authenticated Role Card (Read-only security badge)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = AgriGreenContainer),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                UserRole.values().forEach { role ->
-                    val isSel = user.role == role
-                    FilterChip(
-                        selected = isSel,
-                        onClick = { viewModel.switchRole(role) },
-                        label = {
-                            Text(
-                                text = when (role) {
-                                    UserRole.BUYER -> "Buyer"
-                                    UserRole.SELLER -> "Seller"
-                                    UserRole.DELIVERY -> "Delivery"
-                                    UserRole.ADMIN -> "Admin"
-                                },
-                                fontSize = 11.sp
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = AgriGreenPrimary,
-                            selectedLabelColor = Color.White
-                        )
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Security,
+                        contentDescription = null,
+                        tint = AgriGreenDark,
+                        modifier = Modifier.size(20.dp)
                     )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Account Role: ${user.role.displayName}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AgriGreenDark
+                        )
+                        Text(
+                            text = "Role is authenticated & system-managed (Read-Only)",
+                            fontSize = 11.sp,
+                            color = TextSecondary
+                        )
+                    }
                 }
             }
 
-            // Role-Specific Fast Entry Buttons
-            if (user.role == UserRole.SELLER || user.role == UserRole.ADMIN) {
+            // Role-Specific Navigation Buttons (Only shown for user's assigned role)
+            if (user.role == UserRole.SELLER) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -403,7 +406,7 @@ fun ProfileScreen(
                 }
             }
 
-            if (user.role == UserRole.DELIVERY || user.role == UserRole.ADMIN) {
+            if (user.role == UserRole.DELIVERY) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -678,14 +681,16 @@ fun TrainingAcademyScreen(
 @Composable
 fun AdminOverviewScreen(
     viewModel: GramVyaparViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    initialTab: Int = 0
 ) {
     val products by viewModel.allProducts.collectAsState()
     val orders by viewModel.orders.collectAsState()
     val allUsers by viewModel.allUsers.collectAsState()
 
-    var adminTab by remember { mutableStateOf(0) }
+    var adminTab by remember(initialTab) { mutableStateOf(initialTab) }
     var selectedOrderForAssign by remember { mutableStateOf<Order?>(null) }
+    var selectedUserForPermissions by remember { mutableStateOf<UserProfile?>(null) }
     var assignSuccessMsg by remember { mutableStateOf<String?>(null) }
 
     val deliveryBoys = allUsers.filter { it.role == UserRole.DELIVERY }
@@ -823,53 +828,74 @@ fun AdminOverviewScreen(
                                 colors = CardDefaults.cardColors(containerColor = RuralSurface),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(userItem.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(4.dp))
-                                                    .background(
-                                                        when (userItem.role) {
-                                                            UserRole.ADMIN -> Color(0xFFEDE7F6)
-                                                            UserRole.SELLER -> AgriGreenContainer
-                                                            UserRole.DELIVERY -> SaffronContainer
-                                                            else -> Color(0xFFF1F5F9)
+                                Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(userItem.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(4.dp))
+                                                        .background(
+                                                            when (userItem.role) {
+                                                                UserRole.ADMIN -> Color(0xFFEDE7F6)
+                                                                UserRole.SELLER -> AgriGreenContainer
+                                                                UserRole.DELIVERY -> SaffronContainer
+                                                                else -> Color(0xFFF1F5F9)
+                                                            }
+                                                        )
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = userItem.role.name,
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = when (userItem.role) {
+                                                            UserRole.ADMIN -> Color(0xFF4A148C)
+                                                            UserRole.SELLER -> AgriGreenDark
+                                                            UserRole.DELIVERY -> OnSaffronContainer
+                                                            else -> TextPrimary
                                                         }
                                                     )
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                            ) {
+                                                }
+                                            }
+                                            Text("📞 ${userItem.phone} • ✉️ ${userItem.email}", fontSize = 11.sp, color = TextSecondary)
+                                            Text("📍 ${userItem.village}, Buldhana", fontSize = 11.sp, color = TextMuted)
+                                        }
+
+                                        if (userItem.role != UserRole.ADMIN) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Switch(
+                                                    checked = userItem.isActive,
+                                                    onCheckedChange = { viewModel.toggleUserStatus(userItem.id) },
+                                                    colors = SwitchDefaults.colors(checkedThumbColor = AgriGreenPrimary)
+                                                )
                                                 Text(
-                                                    text = userItem.role.name,
+                                                    if (userItem.isActive) "Active" else "Blocked",
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = when (userItem.role) {
-                                                        UserRole.ADMIN -> Color(0xFF4A148C)
-                                                        UserRole.SELLER -> AgriGreenDark
-                                                        UserRole.DELIVERY -> OnSaffronContainer
-                                                        else -> TextPrimary
-                                                    }
+                                                    color = if (userItem.isActive) AgriGreenDark else RateDownRed
                                                 )
                                             }
                                         }
-                                        Text("📞 ${userItem.phone} • ✉️ ${userItem.email}", fontSize = 11.sp, color = TextSecondary)
-                                        Text("📍 ${userItem.village}, Buldhana", fontSize = 11.sp, color = TextMuted)
                                     }
 
                                     if (userItem.role != UserRole.ADMIN) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Switch(
-                                                checked = userItem.isActive,
-                                                onCheckedChange = { viewModel.toggleUserStatus(userItem.id) },
-                                                colors = SwitchDefaults.colors(checkedThumbColor = AgriGreenPrimary)
-                                            )
-                                            Text(if (userItem.isActive) "Active" else "Blocked", fontSize = 9.sp, color = if (userItem.isActive) AgriGreenDark else RateDownRed)
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        OutlinedButton(
+                                            onClick = { selectedUserForPermissions = userItem },
+                                            modifier = Modifier.fillMaxWidth().height(36.dp),
+                                            shape = RoundedCornerShape(6.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AgriGreenDark)
+                                        ) {
+                                            Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(15.dp), tint = AgriGreenDark)
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Manage Permissions", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
                                         }
                                     }
                                 }
@@ -941,14 +967,14 @@ fun AdminOverviewScreen(
                                     Column(modifier = Modifier.padding(14.dp)) {
                                         Text("Cash on Delivery", fontSize = 11.sp, color = OnSaffronContainer)
                                         Text("₹${codTotal.toInt()}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = OnSaffronContainer)
-                                        Text("${codOrders.size} orders", fontSize = 10.sp, color = OnSaffronContainer.copy(alpha = 0.8f))
+                                        Text("${codOrders.size} orders", fontSize = 10.sp, color = OnSaffronContainer)
                                     }
                                 }
                                 Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = AgriGreenContainer)) {
                                     Column(modifier = Modifier.padding(14.dp)) {
                                         Text("Online UPI (Razorpay)", fontSize = 11.sp, color = AgriGreenDark)
                                         Text("₹${upiTotal.toInt()}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
-                                        Text("${upiOrders.size} orders", fontSize = 10.sp, color = AgriGreenDark.copy(alpha = 0.8f))
+                                        Text("${upiOrders.size} orders", fontSize = 10.sp, color = AgriGreenDark)
                                     }
                                 }
                             }
@@ -1004,6 +1030,198 @@ fun AdminOverviewScreen(
                     Text("Close")
                 }
             }
+        )
+    }
+
+    // User Permissions Management Dialog (Admin Access Control)
+    selectedUserForPermissions?.let { targetUser ->
+        // Track local editing state for permissions
+        var pShopping by remember(targetUser) { mutableStateOf(targetUser.permissions.shopping) }
+        var pCart by remember(targetUser) { mutableStateOf(targetUser.permissions.cart) }
+        var pCheckout by remember(targetUser) { mutableStateOf(targetUser.permissions.checkout) }
+        var pOrders by remember(targetUser) { mutableStateOf(targetUser.permissions.orders) }
+        var pPayments by remember(targetUser) { mutableStateOf(targetUser.permissions.payments) }
+        var pMarketRates by remember(targetUser) { mutableStateOf(targetUser.permissions.marketRates) }
+        var pNotifications by remember(targetUser) { mutableStateOf(targetUser.permissions.notifications) }
+        var pSellerDashboard by remember(targetUser) { mutableStateOf(targetUser.permissions.sellerDashboard) }
+        var pManageProducts by remember(targetUser) { mutableStateOf(targetUser.permissions.manageProducts) }
+        var pAddProduct by remember(targetUser) { mutableStateOf(targetUser.permissions.addProduct) }
+        var pDeliveryManagement by remember(targetUser) { mutableStateOf(targetUser.permissions.deliveryManagement) }
+        var pDeliveryOtp by remember(targetUser) { mutableStateOf(targetUser.permissions.deliveryOtp) }
+
+        AlertDialog(
+            onDismissRequest = { selectedUserForPermissions = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Security, contentDescription = null, tint = AgriGreenDark, modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("User Permissions & Access", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // USER DETAILS CARD
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = RuralBackground),
+                        border = CardDefaults.outlinedCardBorder(),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("USER DETAILS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
+                            Text("Name: ${targetUser.name}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text("Mobile: ${targetUser.phone}", fontSize = 12.sp, color = TextSecondary)
+                            Text("Email: ${targetUser.email}", fontSize = 12.sp, color = TextSecondary)
+                            Text("Location: ${targetUser.village}, Buldhana", fontSize = 12.sp, color = TextSecondary)
+                            Text("Role: ${targetUser.role.displayName} (Permanent)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                        }
+                    }
+
+                    // ACCOUNT STATUS
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = RuralBackground),
+                        border = CardDefaults.outlinedCardBorder(),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("ACCOUNT STATUS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
+                                Text(
+                                    if (targetUser.isActive) "Status: Active" else "Status: Inactive / Blocked",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (targetUser.isActive) AgriGreenDark else RateDownRed
+                                )
+                            }
+                            Switch(
+                                checked = targetUser.isActive,
+                                onCheckedChange = { viewModel.toggleUserStatus(targetUser.id) },
+                                colors = SwitchDefaults.colors(checkedThumbColor = AgriGreenPrimary)
+                            )
+                        }
+                    }
+
+                    // PERMISSIONS HEADER
+                    Text("PERMISSIONS (ACCESS CONTROL)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+
+                    // Buyer Permissions Group
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = RuralSurface),
+                        border = CardDefaults.outlinedCardBorder(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Buyer Shopping Permissions", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
+                            PermissionToggleRow("Products Shopping", pShopping) { pShopping = it }
+                            PermissionToggleRow("Cart", pCart) { pCart = it }
+                            PermissionToggleRow("Checkout", pCheckout) { pCheckout = it }
+                            PermissionToggleRow("Orders History", pOrders) { pOrders = it }
+                            PermissionToggleRow("Payments", pPayments) { pPayments = it }
+                        }
+                    }
+
+                    // Market & Notifications
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = RuralSurface),
+                        border = CardDefaults.outlinedCardBorder(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Information & Alerts", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
+                            PermissionToggleRow("Market Rates (APMC)", pMarketRates) { pMarketRates = it }
+                            PermissionToggleRow("Notifications", pNotifications) { pNotifications = it }
+                        }
+                    }
+
+                    // Seller Permissions Group
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = RuralSurface),
+                        border = CardDefaults.outlinedCardBorder(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Farmer & Seller Permissions", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
+                            PermissionToggleRow("Seller Dashboard", pSellerDashboard) { pSellerDashboard = it }
+                            PermissionToggleRow("Manage Products", pManageProducts) { pManageProducts = it }
+                            PermissionToggleRow("Add Product", pAddProduct) { pAddProduct = it }
+                        }
+                    }
+
+                    // Delivery Permissions Group
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = RuralSurface),
+                        border = CardDefaults.outlinedCardBorder(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Delivery Partner Permissions", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
+                            PermissionToggleRow("Delivery Hub", pDeliveryManagement) { pDeliveryManagement = it }
+                            PermissionToggleRow("Delivery OTP Verification", pDeliveryOtp) { pDeliveryOtp = it }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val newPerms = targetUser.permissions.copy(
+                            shopping = pShopping,
+                            cart = pCart,
+                            checkout = pCheckout,
+                            orders = pOrders,
+                            payments = pPayments,
+                            marketRates = pMarketRates,
+                            notifications = pNotifications,
+                            sellerDashboard = pSellerDashboard,
+                            manageProducts = pManageProducts,
+                            addProduct = pAddProduct,
+                            deliveryManagement = pDeliveryManagement,
+                            deliveryOtp = pDeliveryOtp
+                        )
+                        viewModel.updateUserPermissions(targetUser.id, newPerms)
+                        assignSuccessMsg = "Permissions updated successfully for ${targetUser.name}"
+                        selectedUserForPermissions = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
+                ) {
+                    Text("Save Permissions", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { selectedUserForPermissions = null }) {
+                    Text("Cancel", color = TextPrimary)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun PermissionToggleRow(label: String, isChecked: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+        Switch(
+            checked = isChecked,
+            onCheckedChange = onToggle,
+            colors = SwitchDefaults.colors(checkedThumbColor = AgriGreenPrimary)
         )
     }
 }

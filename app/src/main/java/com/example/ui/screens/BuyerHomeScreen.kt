@@ -125,7 +125,7 @@ fun BuyerHomeScreen(
                         focusedContainerColor = RuralSurface,
                         unfocusedContainerColor = RuralSurface,
                         focusedBorderColor = AgriGreenPrimary,
-                        unfocusedBorderColor = Color.LightGray.copy(alpha = 0.5f)
+                        unfocusedBorderColor = RuralCardBorder
                     ),
                     modifier = Modifier
                         .fillMaxWidth()

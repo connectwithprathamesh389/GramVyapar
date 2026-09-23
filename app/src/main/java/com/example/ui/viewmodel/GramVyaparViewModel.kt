@@ -83,11 +83,15 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
     val notifications = repository.notifications
     val isMandiServiceOnline = repository.isMandiServiceOnline
 
+    // User-facing feedback/toast message
+    val actionMessage = MutableStateFlow<String?>(null)
+    fun clearActionMessage() { actionMessage.value = null }
+
     fun isLoggedIn(): Boolean = repository.sessionManager?.isLoggedIn() ?: false
     fun isFirstLaunch(): Boolean = repository.sessionManager?.isFirstLaunch() ?: false
 
-    fun login(identifier: String, pass: String, requestedRole: UserRole? = null): Boolean {
-        return repository.login(identifier, pass, requestedRole)
+    fun login(identifier: String, pass: String): Boolean {
+        return repository.login(identifier, pass)
     }
 
     fun logout() {
@@ -118,6 +122,15 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
 
     fun toggleUserStatus(userId: String) {
         repository.toggleUserStatus(userId)
+    }
+
+    fun updateUserPermissions(userId: String, newPermissions: UserPermissions) {
+        try {
+            repository.updateUserPermissions(userId, newPermissions)
+            actionMessage.value = "Permissions updated successfully"
+        } catch (e: Exception) {
+            actionMessage.value = e.message ?: "Failed to update permissions"
+        }
     }
 
     data class FilterCriteria(
@@ -193,10 +206,6 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
         repository.setLanguage(lang)
     }
 
-    fun switchRole(role: UserRole) {
-        repository.switchRole(role)
-    }
-
     fun selectProduct(product: Product) {
         _selectedProduct.value = product
         _currentDestination.value = AppDestination.PRODUCT_DETAIL
@@ -212,13 +221,22 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
         _currentDestination.value = AppDestination.TRAINING_DETAIL
     }
 
-    // Cart Operations
+    // Cart Operations with Permission Verification
     fun addToCart(product: Product, quantity: Double = 1.0) {
-        repository.addToCart(product, quantity)
+        try {
+            repository.addToCart(product, quantity)
+            actionMessage.value = "Added to cart"
+        } catch (e: Exception) {
+            actionMessage.value = e.message ?: "Permission denied"
+        }
     }
 
     fun updateCartQuantity(productId: String, delta: Double) {
-        repository.updateCartQuantity(productId, delta)
+        try {
+            repository.updateCartQuantity(productId, delta)
+        } catch (e: Exception) {
+            actionMessage.value = e.message ?: "Permission denied"
+        }
     }
 
     fun removeFromCart(productId: String) {
@@ -226,9 +244,13 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
     }
 
     fun placeOrder(paymentMethod: String, address: String) {
-        val order = repository.placeOrder(paymentMethod, address)
-        _lastPlacedOrder.value = order
-        _currentDestination.value = AppDestination.ORDER_SUCCESS
+        try {
+            val order = repository.placeOrder(paymentMethod, address)
+            _lastPlacedOrder.value = order
+            _currentDestination.value = AppDestination.ORDER_SUCCESS
+        } catch (e: Exception) {
+            actionMessage.value = e.message ?: "Order placement failed"
+        }
     }
 
     fun addProduct(
@@ -240,7 +262,12 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
         description: String,
         isOrganic: Boolean = false
     ) {
-        repository.addProduct(name, category, price, unit, stock, description)
+        try {
+            repository.addProduct(name, category, price, unit, stock, description)
+            actionMessage.value = "Product published successfully"
+        } catch (e: Exception) {
+            actionMessage.value = e.message ?: "Permission denied to add product"
+        }
     }
 
     fun markTrainingComplete(id: String) {

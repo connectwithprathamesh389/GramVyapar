@@ -87,7 +87,7 @@ fun MandiLiveRateTicker(
                         text = "$name (${rate.mandiName}):",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.9f)
+                        color = Color.White
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -97,7 +97,7 @@ fun MandiLiveRateTicker(
                         color = CropGold
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text("•", color = Color.White.copy(alpha = 0.4f))
+                    Text("•", color = Color.White)
                 }
             }
         }

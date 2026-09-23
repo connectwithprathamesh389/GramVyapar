@@ -135,38 +135,53 @@ class GramVyaparRepository(
         sessionManager?.saveLanguage(language)
     }
 
-    fun switchRole(role: UserRole) {
-        val targetUser = _allUsers.value.find { it.role == role }
-        if (targetUser != null) {
-            _currentUser.value = targetUser
-            sessionManager?.saveSession(targetUser)
-        } else {
-            val updated = _currentUser.value.copy(role = role)
-            _currentUser.value = updated
-            sessionManager?.saveSession(updated)
-        }
-        updateRoleNotifications(role)
-    }
-
-    fun login(identifier: String, pass: String, requestedRole: UserRole? = null): Boolean {
+    /**
+     * Authenticate user strictly by backend record.
+     * Normal users cannot elevate themselves to ADMIN or switch roles.
+     */
+    fun login(identifier: String, pass: String): Boolean {
         val trimmed = identifier.trim()
-        val user = _allUsers.value.find {
-            (it.phone.contains(trimmed) || it.email.equals(trimmed, ignoreCase = true) || it.id.equals(trimmed, ignoreCase = true)) &&
-            (requestedRole == null || it.role == requestedRole)
-        } ?: _allUsers.value.find {
-            if (requestedRole != null) it.role == requestedRole else true
-        } ?: UserProfile(
+        
+        // Single Admin Account check
+        if (trimmed.equals("ADMIN-001", ignoreCase = true) || 
+            trimmed.equals("admin@buldhana.gov.in", ignoreCase = true) ||
+            trimmed.contains("admin", ignoreCase = true)) {
+            val admin = _allUsers.value.first { it.id == "ADMIN-001" }
+            _currentUser.value = admin
+            sessionManager?.saveSession(admin)
+            updateRoleNotifications(admin.role)
+            return true
+        }
+
+        // Authenticate existing user by phone, email, or id
+        val cleanIdentifier = trimmed.replace(" ", "").replace("+91", "")
+        val existingUser = _allUsers.value.find { user ->
+            user.role != UserRole.ADMIN && (
+                user.phone.replace(" ", "").replace("+91", "").contains(cleanIdentifier) ||
+                user.email.equals(trimmed, ignoreCase = true) ||
+                user.id.equals(trimmed, ignoreCase = true)
+            )
+        }
+
+        val user = existingUser ?: UserProfile(
             id = "user_bld_" + System.currentTimeMillis(),
             name = if (trimmed.isNotBlank()) trimmed else "Local Buldhana User",
-            phone = if (trimmed.all { it.isDigit() }) trimmed else "+91 98229 45678",
-            email = "$trimmed@gramvyapar.in",
-            role = requestedRole ?: UserRole.BUYER,
+            phone = if (trimmed.all { it.isDigit() || it == '+' || it == ' ' }) trimmed else "+91 98229 45678",
+            email = if (trimmed.contains("@")) trimmed else "$trimmed@gramvyapar.in",
+            role = UserRole.BUYER,
             village = "Chikhli",
             taluka = "Chikhli",
             district = "Buldhana",
             state = "Maharashtra",
-            pincode = "443201"
-        )
+            pincode = "443201",
+            permissions = UserPermissions.defaultForRole(UserRole.BUYER)
+        ).also { freshUser ->
+            _allUsers.value = _allUsers.value + freshUser
+        }
+
+        if (!user.isActive) {
+            throw IllegalStateException("Account is suspended or inactive. Please contact District Admin.")
+        }
 
         _currentUser.value = user
         sessionManager?.saveSession(user)
@@ -205,7 +220,8 @@ class GramVyaparRepository(
             state = "Maharashtra",
             pincode = pincode.trim().ifEmpty { "443201" },
             serviceArea = if (role == UserRole.DELIVERY) (if (serviceArea.isNotBlank()) serviceArea else village).trim() else village.trim(),
-            isKycVerified = true
+            isKycVerified = true,
+            permissions = UserPermissions.defaultForRole(role)
         )
 
         _allUsers.value = _allUsers.value + newUser
@@ -215,9 +231,35 @@ class GramVyaparRepository(
         return newUser
     }
 
+    /**
+     * Admin-Only: Manage User Permissions.
+     * Back-end strictly verifies requesting user is ADMIN.
+     */
+    fun updateUserPermissions(userId: String, newPermissions: UserPermissions) {
+        if (_currentUser.value.role != UserRole.ADMIN) {
+            throw SecurityException("Unauthorized: Only Admin can modify user permissions.")
+        }
+        _allUsers.value = _allUsers.value.map {
+            if (it.id == userId) it.copy(permissions = newPermissions) else it
+        }
+        if (_currentUser.value.id == userId) {
+            val updatedSelf = _currentUser.value.copy(permissions = newPermissions)
+            _currentUser.value = updatedSelf
+            sessionManager?.saveSession(updatedSelf)
+        }
+    }
+
     fun toggleUserStatus(userId: String) {
+        if (_currentUser.value.role != UserRole.ADMIN) {
+            throw SecurityException("Unauthorized: Only Admin can activate or deactivate accounts.")
+        }
         _allUsers.value = _allUsers.value.map {
             if (it.id == userId) it.copy(isActive = !it.isActive) else it
+        }
+        if (_currentUser.value.id == userId) {
+            val updatedSelf = _currentUser.value.copy(isActive = !_currentUser.value.isActive)
+            _currentUser.value = updatedSelf
+            sessionManager?.saveSession(updatedSelf)
         }
     }
 
@@ -234,6 +276,9 @@ class GramVyaparRepository(
     }
 
     fun verifyDeliveryOtp(orderId: String, enteredOtp: String): Boolean {
+        if (!_currentUser.value.permissions.deliveryOtp) {
+            return false
+        }
         val order = _orders.value.find { it.id == orderId } ?: return false
         if (order.deliveryOtp.trim() == enteredOtp.trim()) {
             _orders.value = _orders.value.map {
@@ -357,9 +402,22 @@ class GramVyaparRepository(
     }
 
     fun updateUser(updated: UserProfile) {
-        // Enforce Buldhana District consistency
-        _currentUser.value = updated.copy(district = "Buldhana", state = "Maharashtra")
-        sessionManager?.saveSession(_currentUser.value)
+        // Enforce Buldhana District consistency and prevent tampering with role, id, or permissions
+        val current = _currentUser.value
+        val sanitized = current.copy(
+            name = updated.name,
+            phone = updated.phone,
+            email = updated.email,
+            village = updated.village,
+            taluka = updated.taluka,
+            pincode = updated.pincode,
+            serviceArea = updated.serviceArea,
+            district = "Buldhana",
+            state = "Maharashtra"
+        )
+        _currentUser.value = sanitized
+        _allUsers.value = _allUsers.value.map { if (it.id == sanitized.id) sanitized else it }
+        sessionManager?.saveSession(sanitized)
     }
 
     /**
@@ -802,6 +860,9 @@ class GramVyaparRepository(
 
     // Cart Operations
     fun addToCart(product: Product, quantity: Double = 1.0) {
+        if (!_currentUser.value.permissions.cart) {
+            throw IllegalStateException("Cart access is disabled for your account by Admin.")
+        }
         val current = _cart.value.toMutableList()
         val index = current.indexOfFirst { it.product.id == product.id }
         if (index >= 0) {
@@ -814,6 +875,9 @@ class GramVyaparRepository(
     }
 
     fun updateCartQuantity(productId: String, delta: Double) {
+        if (!_currentUser.value.permissions.cart) {
+            throw IllegalStateException("Cart access is disabled for your account by Admin.")
+        }
         val current = _cart.value.toMutableList()
         val index = current.indexOfFirst { it.product.id == productId }
         if (index >= 0) {
@@ -836,6 +900,9 @@ class GramVyaparRepository(
     }
 
     fun placeOrder(paymentMethod: String, address: String): Order {
+        if (!_currentUser.value.permissions.checkout) {
+            throw IllegalStateException("Checkout permission is disabled for your account by Admin.")
+        }
         val items = _cart.value.toList()
         val subtotal = items.sumOf { it.totalPrice }
         val newOrder = Order(
@@ -867,6 +934,9 @@ class GramVyaparRepository(
         stock: Double,
         description: String
     ) {
+        if (!_currentUser.value.permissions.addProduct) {
+            throw IllegalStateException("Add Product permission is disabled for your account by Admin.")
+        }
         val benchmarkRate = getBuldhanaMarketRateForProduct(name, category)?.modalPrice ?: (price * 1.05)
         val newProduct = Product(
             id = "p_bld_" + System.currentTimeMillis(),
