@@ -475,11 +475,16 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf(UserRole.SELLER) }
-    var village by remember { mutableStateOf("Dindori") }
-    var taluka by remember { mutableStateOf("Dindori") }
-    var district by remember { mutableStateOf("Nashik") }
-    var state by remember { mutableStateOf("Maharashtra") }
-    var pincode by remember { mutableStateOf("422202") }
+    var village by remember { mutableStateOf("Chikhli") }
+    val buldhanaTalukas = listOf(
+        "Buldhana", "Chikhli", "Deulgaon Raja", "Jalgaon (Jamod)", "Khamgaon",
+        "Lonar", "Malkapur", "Mehkar", "Motala", "Nandura", "Sangrampur", "Shegaon", "Sindkhed Raja"
+    )
+    var taluka by remember { mutableStateOf("Chikhli") }
+    var talukaExpanded by remember { mutableStateOf(false) }
+    val district = "Buldhana"
+    val state = "Maharashtra"
+    var pincode by remember { mutableStateOf("443201") }
     var aadhaarUploaded by remember { mutableStateOf(true) }
     var termsAccepted by remember { mutableStateOf(true) }
     var showOtpDialog by remember { mutableStateOf(false) }
@@ -597,36 +602,77 @@ fun RegisterScreen(
             )
             Spacer(modifier = Modifier.height(6.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = village,
-                    onValueChange = { village = it },
-                    label = { Text(AppStrings.get("village", lang)) },
-                    modifier = Modifier.weight(1f)
-                )
+            OutlinedTextField(
+                value = village,
+                onValueChange = { village = it },
+                label = { Text(AppStrings.get("village", lang)) },
+                placeholder = { Text("e.g. Chikhli, Bibi, Undri, etc.") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Taluka selection strictly within Buldhana District
+            @OptIn(ExperimentalMaterial3Api::class)
+            ExposedDropdownMenuBox(
+                expanded = talukaExpanded,
+                onExpandedChange = { talukaExpanded = !talukaExpanded },
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 OutlinedTextField(
                     value = taluka,
-                    onValueChange = { taluka = it },
-                    label = { Text(AppStrings.get("taluka", lang)) },
-                    modifier = Modifier.weight(1f)
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Taluka (Buldhana District)") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = talukaExpanded) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
                 )
+                ExposedDropdownMenu(
+                    expanded = talukaExpanded,
+                    onDismissRequest = { talukaExpanded = false }
+                ) {
+                    buldhanaTalukas.forEach { t ->
+                        DropdownMenuItem(
+                            text = { Text(t) },
+                            onClick = {
+                                taluka = t
+                                talukaExpanded = false
+                            }
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = district,
-                    onValueChange = { district = it },
-                    label = { Text(AppStrings.get("district", lang)) },
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = pincode,
-                    onValueChange = { pincode = it },
-                    label = { Text(AppStrings.get("pincode", lang)) },
-                    modifier = Modifier.weight(1f)
-                )
+            // Fixed Location: Buldhana District, Maharashtra (Section 2)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = AgriGreenContainer),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = AgriGreenDark)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "📍 Buldhana District, Maharashtra",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = AgriGreenDark
+                        )
+                        Text(
+                            text = "Fixed strictly for local rural marketplace in Buldhana",
+                            fontSize = 11.sp,
+                            color = TextSecondary
+                        )
+                    }
+                }
             }
 
             if (selectedRole == UserRole.SELLER || selectedRole == UserRole.DELIVERY) {

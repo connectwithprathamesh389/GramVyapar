@@ -2,7 +2,6 @@ package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,196 +17,30 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.*
 import com.example.ui.i18n.AppStrings
 import com.example.ui.theme.*
+import com.example.ui.viewmodel.AppDestination
 import com.example.ui.viewmodel.GramVyaparViewModel
 
-// 1. DELIVERY PARTNER SCREEN
+// 1. SECTION 17: DELIVERY BOY EXPERIENCE
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeliveryPartnerScreen(
-    viewModel: GramVyaparViewModel
-) {
-    val lang by viewModel.language.collectAsState()
-    val orders by viewModel.orders.collectAsState()
-    var enteredOtp by remember { mutableStateOf("") }
-    var activeOrderToDeliver by remember { mutableStateOf<Order?>(null) }
-    var showOtpError by remember { mutableStateOf(false) }
-
-    Scaffold(
-        containerColor = RuralBackground
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            item {
-                Column {
-                    Text(
-                        text = "Rural Delivery Hub 🚚",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AgriGreenDark
-                    )
-                    Text(
-                        text = "Village Farm-to-Buyer Express Logistics",
-                        fontSize = 12.sp,
-                        color = TextSecondary
-                    )
-                }
-            }
-
-            items(orders) { order ->
-                Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = RuralSurface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(order.id, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AgriGreenDark)
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(
-                                        if (order.orderStatus == OrderStatus.DELIVERED) AgriGreenContainer else SaffronContainer
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    order.orderStatus.title.split("/")[0].trim(),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (order.orderStatus == OrderStatus.DELIVERED) OnAgriGreenContainer else OnSaffronContainer
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Pickup point
-                        Row(verticalAlignment = Alignment.Top) {
-                            Icon(Icons.Default.Store, contentDescription = null, tint = AgriGreenPrimary, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text("Pickup from Farmer:", fontSize = 11.sp, color = TextSecondary)
-                                Text("Kisan Baburao (Pimpalgaon Baswant, Nashik)", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Delivery point
-                        Row(verticalAlignment = Alignment.Top) {
-                            Icon(Icons.Default.Home, contentDescription = null, tint = SaffronAccent, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text("Deliver to Buyer:", fontSize = 11.sp, color = TextSecondary)
-                                Text("${order.buyerName} • ${order.buyerPhone}", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                                Text(order.deliveryAddress, fontSize = 11.sp, color = TextSecondary)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        if (order.orderStatus != OrderStatus.DELIVERED) {
-                            Button(
-                                onClick = { activeOrderToDeliver = order },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(44.dp)
-                                    .testTag("delivery_complete_action_btn"),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
-                            ) {
-                                Text("Enter Customer OTP & Deliver", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (activeOrderToDeliver != null) {
-        AlertDialog(
-            onDismissRequest = { activeOrderToDeliver = null },
-            title = { Text("Complete Delivery Hand-off", fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text(
-                        text = "Ask customer for the 4-digit Delivery OTP sent to their phone.\n(Demo Hint: ${activeOrderToDeliver?.deliveryOtp})",
-                        fontSize = 13.sp,
-                        color = TextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = enteredOtp,
-                        onValueChange = { enteredOtp = it; showOtpError = false },
-                        label = { Text("Enter OTP") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (showOtpError) {
-                        Text("Invalid OTP. Please re-check with buyer.", color = RateDownRed, fontSize = 11.sp)
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (enteredOtp.trim() == activeOrderToDeliver?.deliveryOtp) {
-                            activeOrderToDeliver?.let {
-                                viewModel.updateOrderStatus(it.id, OrderStatus.DELIVERED)
-                            }
-                            activeOrderToDeliver = null
-                            enteredOtp = ""
-                        } else {
-                            showOtpError = true
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
-                ) {
-                    Text("Verify & Deliver")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { activeOrderToDeliver = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-}
-
-// 2. RURAL ARTISANS GUILD SCREEN
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun RuralArtisansScreen(
     viewModel: GramVyaparViewModel,
     onBack: () -> Unit
 ) {
-    val artisans by viewModel.artisans.collectAsState()
+    val orders by viewModel.orders.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Rural Artisans Guild 🏺", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = { Text("Today's Deliveries", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -226,451 +59,66 @@ fun RuralArtisansScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = SaffronContainer),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Vocal for Local • Preserving Indian Heritage",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = OnSaffronContainer
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Buy directly from traditional pottery masters, Warli tribal painters, and handloom weavers across Indian villages. 100% of proceeds reach rural craft clusters.",
-                            fontSize = 12.sp,
-                            color = TextSecondary
-                        )
-                    }
-                }
+                Text(
+                    text = "Buldhana District Local Deliveries",
+                    fontSize = 13.sp,
+                    color = TextSecondary
+                )
             }
 
-            items(artisans) { artisan ->
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = RuralSurface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .clip(CircleShape)
-                                    .background(SaffronContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("🏺", fontSize = 28.sp)
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(artisan.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                Text(artisan.craftType, fontSize = 12.sp, color = SaffronAccent, fontWeight = FontWeight.SemiBold)
-                                Text("📍 ${artisan.village}, ${artisan.district}", fontSize = 11.sp, color = TextSecondary)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(AgriGreenContainer)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text("⭐ ${artisan.rating}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = artisan.story,
-                            fontSize = 12.sp,
-                            color = TextSecondary,
-                            lineHeight = 17.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text("Specialties:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            artisan.specialties.take(3).forEach { spec ->
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(RuralBackground)
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text(spec, fontSize = 10.sp, color = TextPrimary)
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Button(
-                            onClick = {},
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(42.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
-                        ) {
-                            Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Contact Artisan / Custom Order", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// 3. TRAINING & SKILL DEVELOPMENT SCREEN
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TrainingAcademyScreen(
-    viewModel: GramVyaparViewModel
-) {
-    val modules by viewModel.trainingModules.collectAsState()
-    var selectedForCertificate by remember { mutableStateOf<TrainingModule?>(null) }
-
-    Scaffold(
-        containerColor = RuralBackground
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            item {
-                Column {
-                    Text(
-                        text = "Rural Entrepreneur Academy 🎓",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AgriGreenDark
-                    )
-                    Text(
-                        text = "Master Online E-Commerce & Sell to Millions Nationwide",
-                        fontSize = 12.sp,
-                        color = TextSecondary
-                    )
-                }
-            }
-
-            items(modules) { module ->
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = RuralSurface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(SaffronContainer)
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    module.platformTag,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = OnSaffronContainer
-                                )
-                            }
-                            Text(module.duration, fontSize = 11.sp, color = TextSecondary)
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = module.title,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Text(
-                            text = module.description,
-                            fontSize = 12.sp,
-                            color = TextSecondary,
-                            lineHeight = 16.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text("Key Practical Learnings:", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        module.keyTakeaways.forEach { takeaway ->
-                            Text("• $takeaway", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.padding(vertical = 1.dp))
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            if (!module.isCompleted) {
-                                Button(
-                                    onClick = {
-                                        viewModel.markTrainingComplete(module.id)
-                                    },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(42.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
-                                ) {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Complete Lesson", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                            } else {
-                                OutlinedButton(
-                                    onClick = { selectedForCertificate = module },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(42.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    border = ButtonDefaults.outlinedButtonBorder.copy(
-                                        brush = Brush.horizontalGradient(listOf(AgriGreenPrimary, CropGold))
-                                    )
-                                ) {
-                                    Icon(Icons.Default.CardMembership, contentDescription = null, tint = AgriGreenPrimary, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("View Certificate 🎖️", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AgriGreenPrimary)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Certificate Dialog
-    if (selectedForCertificate != null) {
-        AlertDialog(
-            onDismissRequest = { selectedForCertificate = null },
-            title = {
-                Text("Certificate of Completion 🎖️", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            },
-            text = {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Government & GramVyapar Rural Entrepreneurship Initiative",
-                        fontSize = 11.sp,
-                        color = TextSecondary,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(2.dp, CropGold, RoundedCornerShape(12.dp))
-                            .background(Color(0xFFFFFDE7))
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("CERTIFICATE AWARDED TO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
-                            Text("Ramesh Tukaram Patil", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = AgriGreenDark)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("For successfully completing the verified course:", fontSize = 10.sp, color = TextSecondary)
-                            Text(selectedForCertificate?.certificateTitle ?: "", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SaffronAccent, textAlign = TextAlign.Center)
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text("Authorized by GramVyapar Rural Digital Guild", fontSize = 9.sp, color = TextMuted)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { selectedForCertificate = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
-                ) {
-                    Text("Close")
-                }
-            }
-        )
-    }
-}
-
-// 4. ADMIN SCREEN
-@Composable
-fun AdminOverviewScreen(
-    viewModel: GramVyaparViewModel
-) {
-    var broadcastText by remember { mutableStateOf("") }
-    var isBroadcastSent by remember { mutableStateOf(false) }
-
-    Scaffold(
-        containerColor = RuralBackground
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            item {
-                Column {
-                    Text(
-                        text = "Platform Administration Console ⚙️",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AgriGreenDark
-                    )
-                    Text("GramVyapar E-Commerce Network Governance", fontSize = 12.sp, color = TextSecondary)
-                }
-            }
-
-            // High level Metrics
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = AgriGreenContainer),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Gross GMV", fontSize = 11.sp, color = TextSecondary)
-                            Text("₹14.8 Lakhs", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
-                        }
-                    }
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = SaffronContainer),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Active Farmers", fontSize = 11.sp, color = TextSecondary)
-                            Text("2,480 FPOs", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = OnSaffronContainer)
-                        }
-                    }
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = RuralSurface),
-                        shape = RoundedCornerShape(12.dp),
-                        border = CardDefaults.outlinedCardBorder()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Dispute Rate", fontSize = 11.sp, color = TextSecondary)
-                            Text("0.08%", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = RateUpGreen)
-                        }
-                    }
-                }
-            }
-
-            // Pending KYC Verifications
-            item {
-                Text("Pending Farmer & Artisan KYC Approvals", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            }
-
-            item {
+            items(orders) { order ->
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = RuralSurface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column {
-                                Text("Ganesh Gaikwad (Farmer Producer)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text("7/12 Land Record Attached • Narayangaon, Pune", fontSize = 11.sp, color = TextSecondary)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(SaffronContainer)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text("Pending Review", fontSize = 10.sp, color = SaffronAccent, fontWeight = FontWeight.Bold)
-                            }
+                            Text("Order ${order.id}", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text("Status: ${order.orderStatus.titleEn}", color = AgriGreenDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Text("Customer: ${order.buyerName} • ${order.buyerPhone}", fontSize = 12.sp)
+                        Text("Location: ${order.deliveryAddress}", fontSize = 12.sp, color = TextSecondary)
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Simple Action Buttons: Pickup | Out for Delivery | Delivered
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
-                                onClick = {},
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
+                                onClick = { viewModel.updateOrderStatus(order.id, OrderStatus.PREPARING) },
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AgriGreenContainer, contentColor = AgriGreenDark),
+                                contentPadding = PaddingValues(0.dp)
                             ) {
-                                Text("Approve KYC", fontSize = 12.sp)
+                                Text("Pickup", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
-                            OutlinedButton(
-                                onClick = {},
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Request Re-upload", fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-            }
 
-            // Broadcast Advisory
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = RuralSurface),
-                    border = CardDefaults.outlinedCardBorder()
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("Broadcast Emergency Rural Advisory / Mandi Notice", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = broadcastText,
-                            onValueChange = { broadcastText = it },
-                            placeholder = { Text("Enter weather emergency, crop pest advisory or government subsidy update...") },
-                            minLines = 2,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Button(
-                            onClick = { isBroadcastSent = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
-                        ) {
-                            Text("Send Push Broadcast to All Users", fontWeight = FontWeight.Bold)
-                        }
-                        if (isBroadcastSent) {
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text("✓ Broadcast successfully delivered to 2,480 rural members.", color = AgriGreenPrimary, fontSize = 11.sp)
+                            Button(
+                                onClick = { viewModel.updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY) },
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = SaffronContainer, contentColor = OnSaffronContainer),
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text("Out for Delivery", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = { viewModel.updateOrderStatus(order.id, OrderStatus.DELIVERED) },
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary),
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text("Delivered", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -679,11 +127,17 @@ fun AdminOverviewScreen(
     }
 }
 
-// 5. PROFILE SCREEN
+// 2. SECTION 14: SIMPLE PROFILE SCREEN
 @Composable
 fun ProfileScreen(
     viewModel: GramVyaparViewModel,
-    onNavigateToLanguage: () -> Unit
+    onNavigateToLanguage: () -> Unit,
+    onNavigateToOrders: () -> Unit,
+    onNavigateToLearnAndGrow: () -> Unit,
+    onNavigateToArtisans: () -> Unit,
+    onNavigateToSellerDashboard: () -> Unit,
+    onNavigateToDeliveries: () -> Unit,
+    onNavigateToAdmin: () -> Unit
 ) {
     val lang by viewModel.language.collectAsState()
     val user by viewModel.user.collectAsState()
@@ -696,11 +150,12 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // User Header
+            // User Information Header
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = RuralSurface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -711,63 +166,24 @@ fun ProfileScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(60.dp)
+                            .size(54.dp)
                             .clip(CircleShape)
-                            .background(AgriGreenContainer)
-                            .border(2.dp, AgriGreenPrimary, CircleShape),
+                            .background(AgriGreenContainer),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("🌾", fontSize = 32.sp)
+                        Text("👤", fontSize = 28.sp)
                     }
                     Spacer(modifier = Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column {
                         Text(user.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Text(user.phone, fontSize = 12.sp, color = TextSecondary)
-                        Text("📍 ${user.village}, ${user.district}, ${user.state}", fontSize = 11.sp, color = TextMuted)
+                        Text("📍 ${user.village}, Buldhana, Maharashtra", fontSize = 11.sp, color = AgriGreenDark, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // In-App Rural Wallet Card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = AgriGreenDark),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Text("GramVyapar Kisan & Buyer Wallet", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("₹${user.walletBalance.toInt()}", color = CropGold, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
-                            onClick = {},
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = SaffronAccent)
-                        ) {
-                            Text("Add Funds", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
-                        OutlinedButton(
-                            onClick = {},
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                        ) {
-                            Text("Withdraw to Bank", fontSize = 12.sp)
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Switch Role Quick Section
-            Text("Switch Role (Experience all facets):", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Spacer(modifier = Modifier.height(6.dp))
+            // Switch Role (Clean quick tester)
+            Text("Switch Role (Test Buyer, Seller, Delivery, Admin):", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -781,7 +197,7 @@ fun ProfileScreen(
                             Text(
                                 text = when (role) {
                                     UserRole.BUYER -> "Buyer"
-                                    UserRole.SELLER -> "Farmer"
+                                    UserRole.SELLER -> "Seller"
                                     UserRole.DELIVERY -> "Delivery"
                                     UserRole.ADMIN -> "Admin"
                                 },
@@ -796,59 +212,192 @@ fun ProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Role-Specific Fast Entry Buttons
+            if (user.role == UserRole.SELLER || user.role == UserRole.ADMIN) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToSellerDashboard() },
+                    colors = CardDefaults.cardColors(containerColor = AgriGreenContainer),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Storefront, contentDescription = null, tint = AgriGreenDark)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Open Seller Dashboard (Buldhana)", fontWeight = FontWeight.Bold, color = AgriGreenDark, fontSize = 14.sp)
+                    }
+                }
+            }
 
-            // Settings & Preferences
+            if (user.role == UserRole.DELIVERY || user.role == UserRole.ADMIN) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToDeliveries() },
+                    colors = CardDefaults.cardColors(containerColor = SaffronContainer),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.LocalShipping, contentDescription = null, tint = OnSaffronContainer)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Open My Deliveries Hub", fontWeight = FontWeight.Bold, color = OnSaffronContainer, fontSize = 14.sp)
+                    }
+                }
+            }
+
+            if (user.role == UserRole.ADMIN) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToAdmin() },
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEDE7F6)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = Color(0xFF4A148C))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Open Admin Governance Dashboard", fontWeight = FontWeight.Bold, color = Color(0xFF4A148C), fontSize = 14.sp)
+                    }
+                }
+            }
+
+            // Section 14: Main Options List
             Card(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = RuralSurface),
                 border = CardDefaults.outlinedCardBorder()
             ) {
                 Column {
                     ListItem(
+                        headlineContent = { Text("My Orders") },
+                        leadingContent = { Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = AgriGreenPrimary) },
+                        trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
+                        modifier = Modifier.clickable { onNavigateToOrders() }
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text("My Addresses") },
+                        supportingContent = { Text("${user.village}, Buldhana District") },
+                        leadingContent = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = AgriGreenPrimary) }
+                    )
+                    HorizontalDivider()
+                    ListItem(
                         headlineContent = { Text("Language / भाषा") },
-                        supportingContent = { Text(lang.nativeName + " (" + lang.englishName + ")") },
+                        supportingContent = { Text("${lang.nativeName} (${lang.englishName})") },
                         leadingContent = { Icon(Icons.Default.Language, contentDescription = null, tint = AgriGreenPrimary) },
                         trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
                         modifier = Modifier.clickable { onNavigateToLanguage() }
                     )
                     HorizontalDivider()
                     ListItem(
-                        headlineContent = { Text("KYC & Land Verification") },
-                        supportingContent = { Text("Aadhaar: ${user.aadhaarMasked} (Verified)") },
-                        leadingContent = { Icon(Icons.Default.Verified, contentDescription = null, tint = AgriGreenPrimary) }
+                        headlineContent = { Text("📚 Learn & Grow") },
+                        supportingContent = { Text("Direct farm selling, branding & packaging") },
+                        leadingContent = { Icon(Icons.Default.School, contentDescription = null, tint = SaffronAccent) },
+                        trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
+                        modifier = Modifier.clickable { onNavigateToLearnAndGrow() }
                     )
                     HorizontalDivider()
                     ListItem(
-                        headlineContent = { Text("Direct Benefit Transfer (DBT) Bank Account") },
-                        supportingContent = { Text("State Bank of India (A/C ending in 4109)") },
-                        leadingContent = { Icon(Icons.Default.AccountBalance, contentDescription = null, tint = SaffronAccent) }
+                        headlineContent = { Text("🏺 Rural Artisans") },
+                        supportingContent = { Text("Pottery & handicrafts from Buldhana villages") },
+                        leadingContent = { Icon(Icons.Default.Palette, contentDescription = null, tint = SaffronAccent) },
+                        trailingContent = { Icon(Icons.Default.ChevronRight, contentDescription = null) },
+                        modifier = Modifier.clickable { onNavigateToArtisans() }
                     )
                     HorizontalDivider()
                     ListItem(
-                        headlineContent = { Text("Log Out") },
+                        headlineContent = { Text("Help & Support") },
+                        supportingContent = { Text("Buldhana Kisan Helpline: 1800-180-1551") },
+                        leadingContent = { Icon(Icons.Default.Help, contentDescription = null, tint = TextSecondary) }
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text("Logout", color = RateDownRed, fontWeight = FontWeight.Bold) },
                         leadingContent = { Icon(Icons.Default.Logout, contentDescription = null, tint = RateDownRed) },
-                        modifier = Modifier.clickable { viewModel.navigateTo(com.example.ui.viewmodel.AppDestination.LOGIN) }
+                        modifier = Modifier.clickable { viewModel.navigateTo(AppDestination.LOGIN) }
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+}
+
+// 3. SECTION 22: SIMPLE NOTIFICATIONS
+@Composable
+fun NotificationsScreen(
+    viewModel: GramVyaparViewModel
+) {
+    val notifications by viewModel.notifications.collectAsState()
+
+    Scaffold(
+        containerColor = RuralBackground
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            item {
+                Text(
+                    text = "Notifications",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AgriGreenDark
+                )
+            }
+
+            items(notifications, key = { it.id }) { notif ->
+                Card(
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = RuralSurface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("🔔", fontSize = 22.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(notif.title, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(notif.message, fontSize = 11.sp, color = TextSecondary)
+                            Text(notif.timestamp, fontSize = 9.sp, color = TextMuted)
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-// 6. NOTIFICATIONS SCREEN
+// 4. SECTION 24: RURAL ARTISAN DIRECTORY (Buldhana)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NotificationsScreen(
+fun RuralArtisansScreen(
     viewModel: GramVyaparViewModel,
     onBack: () -> Unit
 ) {
-    val notifications by viewModel.notifications.collectAsState()
+    val artisans by viewModel.artisans.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Real-Time Alerts & Advisories", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = { Text("Rural Artisans (Buldhana)", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -864,54 +413,163 @@ fun NotificationsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            items(notifications) { notif ->
+            items(artisans, key = { it.id }) { artisan ->
                 Card(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = RuralSurface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    when (notif.type) {
-                                        "RATE" -> SaffronContainer
-                                        "WEATHER" -> AgriGreenContainer
-                                        else -> Color(0xFFE1F5FE)
-                                    }
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = when (notif.type) {
-                                    "RATE" -> "📈"
-                                    "WEATHER" -> "🌤️"
-                                    else -> "🏛️"
-                                },
-                                fontSize = 18.sp
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(notif.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Text(notif.timestamp, fontSize = 10.sp, color = TextMuted)
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🏺", fontSize = 32.sp)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(artisan.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text(artisan.craftType, fontSize = 12.sp, color = SaffronAccent, fontWeight = FontWeight.SemiBold)
+                                Text("📍 ${artisan.village}, Buldhana", fontSize = 11.sp, color = TextSecondary)
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(notif.message, fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
                         }
+                        Text(artisan.story, fontSize = 12.sp, color = TextSecondary)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Button(
+                            onClick = {},
+                            modifier = Modifier.fillMaxWidth().height(38.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
+                        ) {
+                            Text("Contact Artisan: ${artisan.contactPhone}", fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 5. SECTION 25: LEARN & GROW
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TrainingAcademyScreen(
+    viewModel: GramVyaparViewModel,
+    onBack: () -> Unit
+) {
+    val modules by viewModel.trainingModules.collectAsState()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("📚 Learn & Grow", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = RuralSurface)
+            )
+        },
+        containerColor = RuralBackground
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            items(modules, key = { it.id }) { module ->
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = RuralSurface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(module.title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AgriGreenDark)
+                        Text("Category: ${module.category} • ${module.duration}", fontSize = 11.sp, color = TextSecondary)
+                        Text(module.description, fontSize = 12.sp, color = TextSecondary)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        module.keyTakeaways.forEach { takeaway ->
+                            Text("• $takeaway", fontSize = 11.sp, color = TextPrimary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 6. SECTION 18: ADMIN DASHBOARD
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdminOverviewScreen(
+    viewModel: GramVyaparViewModel,
+    onBack: () -> Unit
+) {
+    val products by viewModel.allProducts.collectAsState()
+    val orders by viewModel.orders.collectAsState()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Admin Governance", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = RuralSurface)
+            )
+        },
+        containerColor = RuralBackground
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item {
+                Text("Buldhana District Marketplace Overview", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = AgriGreenContainer)) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Products", fontSize = 11.sp, color = TextSecondary)
+                            Text("${products.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
+                        }
+                    }
+                    Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = SaffronContainer)) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Orders", fontSize = 11.sp, color = TextSecondary)
+                            Text("${orders.size}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = OnSaffronContainer)
+                        }
+                    }
+                    Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = RuralSurface), border = CardDefaults.outlinedCardBorder()) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("District", fontSize = 11.sp, color = TextSecondary)
+                            Text("Buldhana", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        }
+                    }
+                }
+            }
+
+            item {
+                Text("Active Orders across Buldhana Talukas", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
+
+            items(orders) { order ->
+                Card(shape = RoundedCornerShape(10.dp), colors = CardDefaults.cardColors(containerColor = RuralSurface)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Order ${order.id} - ${order.buyerName}", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("Delivery: ${order.deliveryAddress}", fontSize = 11.sp, color = TextSecondary)
+                        Text("Status: ${order.orderStatus.titleEn} • Total: ₹${order.totalAmount.toInt()}", fontSize = 11.sp, color = AgriGreenDark, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

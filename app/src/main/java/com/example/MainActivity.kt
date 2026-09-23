@@ -8,8 +8,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -51,33 +49,15 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
     val user by viewModel.user.collectAsState()
     val lang by viewModel.language.collectAsState()
     val cart by viewModel.cart.collectAsState()
+    val orders by viewModel.orders.collectAsState()
     val activeTab by viewModel.activeTab.collectAsState()
     val selectedProduct by viewModel.selectedProduct.collectAsState()
     val lastOrder by viewModel.lastPlacedOrder.collectAsState()
-
-    var showNotificationsScreen by remember { mutableStateOf(false) }
-    var showArtisansScreen by remember { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = RuralBackground
     ) {
-        if (showNotificationsScreen) {
-            NotificationsScreen(
-                viewModel = viewModel,
-                onBack = { showNotificationsScreen = false }
-            )
-            return@Surface
-        }
-
-        if (showArtisansScreen) {
-            RuralArtisansScreen(
-                viewModel = viewModel,
-                onBack = { showArtisansScreen = false }
-            )
-            return@Surface
-        }
-
         AnimatedContent(
             targetState = destination,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -144,7 +124,7 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
                                 viewModel.navigateTo(AppDestination.MAIN_APP)
                             },
                             onViewOrders = {
-                                viewModel.setActiveTab(3)
+                                viewModel.setActiveTab(4) // Profile -> My Orders
                                 viewModel.navigateTo(AppDestination.MAIN_APP)
                             }
                         )
@@ -153,12 +133,51 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
                     }
                 }
                 AppDestination.TRAINING_DETAIL -> {
-                    TrainingAcademyScreen(viewModel = viewModel)
+                    TrainingAcademyScreen(
+                        viewModel = viewModel,
+                        onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
+                    )
                 }
                 AppDestination.ARTISAN_DETAIL -> {
                     RuralArtisansScreen(
                         viewModel = viewModel,
                         onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
+                    )
+                }
+                AppDestination.SELLER_DASHBOARD -> {
+                    SellerDashboardScreen(
+                        viewModel = viewModel,
+                        onNavigateToAddProduct = { viewModel.navigateTo(AppDestination.ADD_PRODUCT) },
+                        onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
+                    )
+                }
+                AppDestination.ADD_PRODUCT -> {
+                    AddProductScreen(
+                        viewModel = viewModel,
+                        onBack = { viewModel.navigateTo(AppDestination.SELLER_DASHBOARD) }
+                    )
+                }
+                AppDestination.DELIVERY_DASHBOARD -> {
+                    DeliveryPartnerScreen(
+                        viewModel = viewModel,
+                        onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
+                    )
+                }
+                AppDestination.ADMIN_DASHBOARD -> {
+                    AdminOverviewScreen(
+                        viewModel = viewModel,
+                        onBack = { viewModel.navigateTo(AppDestination.MAIN_APP) }
+                    )
+                }
+                AppDestination.MANDI_RATES -> {
+                    MandiRatesScreen(
+                        viewModel = viewModel,
+                        onSellProduceClick = {
+                            viewModel.navigateTo(AppDestination.ADD_PRODUCT)
+                        },
+                        onBack = {
+                            viewModel.navigateTo(AppDestination.MAIN_APP)
+                        }
                     )
                 }
                 AppDestination.MAIN_APP -> {
@@ -168,21 +187,20 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
                                 lang = lang,
                                 user = user,
                                 onLanguageClick = { viewModel.navigateTo(AppDestination.LANGUAGE_SELECT) },
-                                onRoleClick = {
-                                    val nextRole = when (user.role) {
-                                        UserRole.BUYER -> UserRole.SELLER
-                                        UserRole.SELLER -> UserRole.DELIVERY
-                                        UserRole.DELIVERY -> UserRole.ADMIN
-                                        UserRole.ADMIN -> UserRole.BUYER
-                                    }
-                                    viewModel.switchRole(nextRole)
-                                },
-                                onNotificationClick = { showNotificationsScreen = true },
                                 cartItemCount = cart.sumOf { it.quantity.toInt() },
-                                onCartClick = { viewModel.setActiveTab(1) }
+                                onCartClick = {
+                                    if (user.role == UserRole.SELLER) {
+                                        viewModel.setActiveTab(1)
+                                    } else {
+                                        viewModel.setActiveTab(1)
+                                    }
+                                }
                             )
                         },
                         bottomBar = {
+                            // 4-Tab Navigation based on role:
+                            // Buyer: 🏠 Home | 🛒 Cart | 📦 Orders | 👤 Profile
+                            // Seller: 🏠 Home | ➕ Add Product | 📦 Orders | 👤 Profile
                             GramVyaparBottomNavBar(
                                 role = user.role,
                                 activeTab = activeTab,
@@ -197,98 +215,70 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
                                 .fillMaxSize()
                                 .padding(innerPadding)
                         ) {
-                            when (user.role) {
-                                UserRole.BUYER -> {
-                                    when (activeTab) {
-                                        0 -> BuyerHomeScreen(
-                                            viewModel = viewModel,
-                                            onProductClick = { viewModel.selectProduct(it) },
-                                            onRateClick = { viewModel.setActiveTab(2) },
-                                            onArtisansClick = { showArtisansScreen = true }
-                                        )
-                                        1 -> CartScreen(
-                                            viewModel = viewModel,
-                                            onProceedCheckout = { viewModel.navigateTo(AppDestination.CHECKOUT) },
-                                            onShopMore = { viewModel.setActiveTab(0) }
-                                        )
-                                        2 -> MandiRatesScreen(
-                                            viewModel = viewModel,
-                                            onSellProduceClick = {
-                                                viewModel.switchRole(UserRole.SELLER)
-                                                viewModel.setActiveTab(1)
-                                            }
-                                        )
-                                        3 -> {
-                                            val orders by viewModel.orders.collectAsState()
-                                            MyOrdersScreen(
-                                                orders = orders,
-                                                lang = lang,
-                                                onShopNow = { viewModel.setActiveTab(0) }
-                                            )
-                                        }
-                                        4 -> ProfileScreen(
-                                            viewModel = viewModel,
-                                            onNavigateToLanguage = { viewModel.navigateTo(AppDestination.LANGUAGE_SELECT) }
-                                        )
-                                    }
+                            if (user.role == UserRole.SELLER) {
+                                when (activeTab) {
+                                    // Seller Tab 0: Home (My Products)
+                                    0 -> SellerDashboardScreen(
+                                        viewModel = viewModel,
+                                        onNavigateToAddProduct = { viewModel.setActiveTab(1) },
+                                        onBack = { }
+                                    )
+                                    // Seller Tab 1: ➕ Add Product
+                                    1 -> AddProductScreen(
+                                        viewModel = viewModel,
+                                        onBack = { viewModel.setActiveTab(0) }
+                                    )
+                                    // Seller Tab 2: 📦 Orders
+                                    2 -> MyOrdersScreen(
+                                        orders = orders,
+                                        lang = lang,
+                                        onShopNow = { viewModel.setActiveTab(0) }
+                                    )
+                                    // Seller Tab 3: 👤 Profile
+                                    3 -> ProfileScreen(
+                                        viewModel = viewModel,
+                                        onNavigateToLanguage = { viewModel.navigateTo(AppDestination.LANGUAGE_SELECT) },
+                                        onNavigateToOrders = { viewModel.setActiveTab(2) },
+                                        onNavigateToLearnAndGrow = { viewModel.navigateTo(AppDestination.TRAINING_DETAIL) },
+                                        onNavigateToArtisans = { viewModel.navigateTo(AppDestination.ARTISAN_DETAIL) },
+                                        onNavigateToSellerDashboard = { viewModel.setActiveTab(0) },
+                                        onNavigateToDeliveries = { viewModel.navigateTo(AppDestination.DELIVERY_DASHBOARD) },
+                                        onNavigateToAdmin = { viewModel.navigateTo(AppDestination.ADMIN_DASHBOARD) }
+                                    )
                                 }
-                                UserRole.SELLER -> {
-                                    when (activeTab) {
-                                        0 -> SellerDashboardScreen(
-                                            viewModel = viewModel,
-                                            onNavigateToAddProduct = { viewModel.setActiveTab(1) },
-                                            onNavigateToTraining = { viewModel.setActiveTab(3) }
-                                        )
-                                        1 -> AddProductScreen(
-                                            viewModel = viewModel,
-                                            onBack = { viewModel.setActiveTab(0) }
-                                        )
-                                        2 -> MandiRatesScreen(
-                                            viewModel = viewModel,
-                                            onSellProduceClick = { viewModel.setActiveTab(1) }
-                                        )
-                                        3 -> TrainingAcademyScreen(viewModel = viewModel)
-                                        4 -> ProfileScreen(
-                                            viewModel = viewModel,
-                                            onNavigateToLanguage = { viewModel.navigateTo(AppDestination.LANGUAGE_SELECT) }
-                                        )
-                                    }
-                                }
-                                UserRole.DELIVERY -> {
-                                    when (activeTab) {
-                                        0 -> DeliveryPartnerScreen(viewModel = viewModel)
-                                        1 -> DeliveryPartnerScreen(viewModel = viewModel)
-                                        2 -> NotificationsScreen(
-                                            viewModel = viewModel,
-                                            onBack = { viewModel.setActiveTab(0) }
-                                        )
-                                        3 -> ProfileScreen(
-                                            viewModel = viewModel,
-                                            onNavigateToLanguage = { viewModel.navigateTo(AppDestination.LANGUAGE_SELECT) }
-                                        )
-                                    }
-                                }
-                                UserRole.ADMIN -> {
-                                    when (activeTab) {
-                                        0 -> AdminOverviewScreen(viewModel = viewModel)
-                                        1 -> AdminOverviewScreen(viewModel = viewModel)
-                                        2 -> {
-                                            val orders by viewModel.orders.collectAsState()
-                                            MyOrdersScreen(
-                                                orders = orders,
-                                                lang = lang,
-                                                onShopNow = { viewModel.setActiveTab(0) }
-                                            )
-                                        }
-                                        3 -> MandiRatesScreen(
-                                            viewModel = viewModel,
-                                            onSellProduceClick = {}
-                                        )
-                                        4 -> ProfileScreen(
-                                            viewModel = viewModel,
-                                            onNavigateToLanguage = { viewModel.navigateTo(AppDestination.LANGUAGE_SELECT) }
-                                        )
-                                    }
+                            } else {
+                                // Buyer (or default)
+                                when (activeTab) {
+                                    // Buyer Tab 0: 🏠 Home
+                                    0 -> BuyerHomeScreen(
+                                        viewModel = viewModel,
+                                        onProductClick = { viewModel.selectProduct(it) },
+                                        onRateClick = { viewModel.navigateTo(AppDestination.MANDI_RATES) },
+                                        onCartClick = { viewModel.setActiveTab(1) }
+                                    )
+                                    // Buyer Tab 1: 🛒 Cart
+                                    1 -> CartScreen(
+                                        viewModel = viewModel,
+                                        onProceedCheckout = { viewModel.navigateTo(AppDestination.CHECKOUT) },
+                                        onShopMore = { viewModel.setActiveTab(0) }
+                                    )
+                                    // Buyer Tab 2: 📦 Orders
+                                    2 -> MyOrdersScreen(
+                                        orders = orders,
+                                        lang = lang,
+                                        onShopNow = { viewModel.setActiveTab(0) }
+                                    )
+                                    // Buyer Tab 3: 👤 Profile
+                                    3 -> ProfileScreen(
+                                        viewModel = viewModel,
+                                        onNavigateToLanguage = { viewModel.navigateTo(AppDestination.LANGUAGE_SELECT) },
+                                        onNavigateToOrders = { viewModel.setActiveTab(2) },
+                                        onNavigateToLearnAndGrow = { viewModel.navigateTo(AppDestination.TRAINING_DETAIL) },
+                                        onNavigateToArtisans = { viewModel.navigateTo(AppDestination.ARTISAN_DETAIL) },
+                                        onNavigateToSellerDashboard = { viewModel.navigateTo(AppDestination.SELLER_DASHBOARD) },
+                                        onNavigateToDeliveries = { viewModel.navigateTo(AppDestination.DELIVERY_DASHBOARD) },
+                                        onNavigateToAdmin = { viewModel.navigateTo(AppDestination.ADMIN_DASHBOARD) }
+                                    )
                                 }
                             }
                         }
@@ -301,5 +291,5 @@ fun GramVyaparApp(viewModel: GramVyaparViewModel) {
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(text = "Welcome to GramVyapar, $name!", modifier = modifier)
+    Text(text = "Hello $name!", modifier = modifier)
 }

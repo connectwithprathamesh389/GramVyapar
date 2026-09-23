@@ -6,18 +6,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -29,22 +26,34 @@ import com.example.data.model.ProductCategory
 import com.example.ui.i18n.AppStrings
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.GramVyaparViewModel
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SellerDashboardScreen(
     viewModel: GramVyaparViewModel,
     onNavigateToAddProduct: () -> Unit,
-    onNavigateToTraining: () -> Unit
+    onBack: () -> Unit
 ) {
     val lang by viewModel.language.collectAsState()
     val user by viewModel.user.collectAsState()
     val products by viewModel.allProducts.collectAsState()
     val orders by viewModel.orders.collectAsState()
 
-    val myProducts = products.filter { it.sellerName == user.name || it.id in listOf("p1", "p2") }
+    var showAdvancedAnalytics by remember { mutableStateOf(false) }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(AppStrings.get("seller_dashboard", lang), fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = RuralSurface)
+            )
+        },
         containerColor = RuralBackground,
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -52,7 +61,7 @@ fun SellerDashboardScreen(
                 containerColor = AgriGreenPrimary,
                 contentColor = Color.White,
                 icon = { Icon(Icons.Default.Add, contentDescription = "Add") },
-                text = { Text("List Farm Produce", fontWeight = FontWeight.Bold) },
+                text = { Text("Add Product", fontWeight = FontWeight.Bold) },
                 modifier = Modifier.testTag("seller_fab_add_product")
             )
         }
@@ -64,22 +73,22 @@ fun SellerDashboardScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Header Profile & Greeting
+            // Location Header
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
                         Text(
-                            text = "Namaste, ${user.name.split(" ")[0]}! 🌾",
-                            fontSize = 20.sp,
+                            text = "Farmer: ${user.name}",
                             fontWeight = FontWeight.Bold,
-                            color = AgriGreenDark
+                            fontSize = 17.sp,
+                            color = TextPrimary
                         )
                         Text(
-                            text = "Farmer & Producer Center • ${user.village}, ${user.district}",
+                            text = "📍 ${user.village}, Buldhana District",
                             fontSize = 12.sp,
                             color = TextSecondary
                         )
@@ -88,116 +97,105 @@ fun SellerDashboardScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(AgriGreenContainer)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
-                        Text("KYC Verified", fontSize = 11.sp, color = AgriGreenPrimary, fontWeight = FontWeight.Bold)
+                        Text("KYC Verified", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AgriGreenDark)
                     }
                 }
             }
 
-            // Metric Summary Cards
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = AgriGreenContainer),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text(AppStrings.get("total_sales", lang), fontSize = 11.sp, color = TextSecondary)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("₹52,480", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = AgriGreenDark)
-                            Text("+18% this harvest", fontSize = 9.sp, color = RateUpGreen)
-                        }
-                    }
-
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = SaffronContainer),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text(AppStrings.get("orders_received", lang), fontSize = 11.sp, color = TextSecondary)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("28 Orders", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = OnSaffronContainer)
-                            Text("6 awaiting dispatch", fontSize = 9.sp, color = SaffronAccent)
-                        }
-                    }
-
-                    Card(
-                        modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = RuralSurface),
-                        shape = RoundedCornerShape(14.dp),
-                        border = CardDefaults.outlinedCardBorder()
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text(AppStrings.get("pending_payout", lang), fontSize = 11.sp, color = TextSecondary)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("₹14,200", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
-                            Text("DBT Transfer", fontSize = 9.sp, color = TextMuted)
-                        }
-                    }
-                }
-            }
-
-            // Quick Banner: Online Selling Academy
+            // Section 16: Today's Summary (Products: 12, Orders: 5, Sales: ₹4,500)
             item {
                 Card(
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = RuralSurface),
-                    border = CardDefaults.outlinedCardBorder(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToTraining() }
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("🎓", fontSize = 28.sp)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Selling on Amazon Kisan & eNAM",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                            Text(
-                                text = "Learn packaging, GST exemptions, and bulk interstate trade.",
-                                fontSize = 11.sp,
-                                color = TextSecondary
-                            )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Today's Summary", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AgriGreenDark)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Products", fontSize = 11.sp, color = TextSecondary)
+                                Text("${products.size}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+                            }
+                            Column {
+                                Text("Orders", fontSize = 11.sp, color = TextSecondary)
+                                Text("${orders.size}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = SaffronAccent)
+                            }
+                            Column {
+                                Text("Sales", fontSize = 11.sp, color = TextSecondary)
+                                Text("₹4,500", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = AgriGreenDark)
+                            }
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = AgriGreenPrimary)
                     }
                 }
             }
 
-            // Section: Orders to Dispatch
+            // Section 16: Main Action Buttons
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Orders Awaiting Dispatch",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    Text("3 Pending", fontSize = 12.sp, color = SaffronAccent, fontWeight = FontWeight.SemiBold)
+                    Button(
+                        onClick = onNavigateToAddProduct,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Product", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    OutlinedButton(
+                        onClick = { showAdvancedAnalytics = !showAdvancedAnalytics },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(if (showAdvancedAnalytics) "Hide Details" else "View More", fontSize = 12.sp)
+                    }
                 }
+            }
+
+            // Optional Advanced Analytics under View More
+            if (showAdvancedAnalytics) {
+                item {
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = AgriGreenContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("Buldhana Mandi Price Intelligence", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AgriGreenDark)
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text("• Tomato wholesale rate in Buldhana Mandi: ₹25/kg (Steady)", fontSize = 11.sp)
+                            Text("• Soybean rate in Khamgaon Mandi: ₹4,800/quintal (+2.4%)", fontSize = 11.sp)
+                            Text("• Malkapur Cotton mandi arrival: Moderate demand", fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+
+            // Recent Orders for Pickup
+            item {
+                Text("Orders Ready for Pickup", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
 
             items(orders) { order ->
                 Card(
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = RuralSurface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         Row(
@@ -207,7 +205,7 @@ fun SellerDashboardScreen(
                             Text("Order ${order.id}", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Text("OTP: ${order.deliveryOtp}", fontWeight = FontWeight.Bold, color = SaffronAccent, fontSize = 13.sp)
                         }
-                        Text("Buyer: ${order.buyerName} • ${order.buyerPhone}", fontSize = 12.sp, color = TextSecondary)
+                        Text("Buyer: ${order.buyerName} • ${order.deliveryAddress}", fontSize = 12.sp, color = TextSecondary)
                         Spacer(modifier = Modifier.height(6.dp))
                         order.items.forEach { item ->
                             Text("• ${item.quantity.toInt()} ${item.product.unit} of ${item.product.name}", fontSize = 12.sp)
@@ -218,46 +216,34 @@ fun SellerDashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Amount: ₹${order.totalAmount.toInt()}", fontWeight = FontWeight.Bold, color = AgriGreenDark, fontSize = 14.sp)
-                            Button(
-                                onClick = {
-                                    viewModel.updateOrderStatus(order.id, OrderStatus.PICKED_UP)
-                                },
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                modifier = Modifier.height(34.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
-                            ) {
-                                Text("Ready for Pickup", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Total: ₹${order.totalAmount.toInt()}", fontWeight = FontWeight.Bold, color = AgriGreenDark)
+                            if (order.orderStatus != OrderStatus.DELIVERED) {
+                                Button(
+                                    onClick = { viewModel.updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY) },
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Text("Mark Handed Over", fontSize = 11.sp)
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Section: My Listed Produce
+            // My Listed Products
             item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "My Active Produce Listings",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    Text("${myProducts.size} Items", fontSize = 12.sp, color = TextSecondary)
-                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("My Products in Buldhana", fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
 
-            items(myProducts) { product ->
+            items(products) { product ->
                 Card(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = CardDefaults.cardColors(containerColor = RuralSurface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
@@ -266,14 +252,10 @@ fun SellerDashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(product.category.iconEmoji, fontSize = 28.sp)
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(product.name, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            Text("Price: ₹${product.price.toInt()}/${product.unit} • Stock: ${product.stock.toInt()} ${product.unit}", fontSize = 11.sp, color = TextSecondary)
-                            Text("Benchmark Mandi Rate: ₹${product.marketMandiRate.toInt()}/${product.unit}", fontSize = 10.sp, color = TextMuted)
-                        }
-                        IconButton(onClick = {}) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = TextSecondary, modifier = Modifier.size(20.dp))
+                            Text("₹${product.price.toInt()}/${product.unit} • Stock: ${product.stock.toInt()} ${product.unit}", fontSize = 11.sp, color = TextSecondary)
                         }
                     }
                 }
@@ -286,6 +268,9 @@ fun SellerDashboardScreen(
     }
 }
 
+/**
+ * Section 8 & 9: Simple Add Product with Automatic Buldhana Market Rate Comparison
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddProductScreen(
@@ -293,100 +278,90 @@ fun AddProductScreen(
     onBack: () -> Unit
 ) {
     val lang by viewModel.language.collectAsState()
-    var name by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf(ProductCategory.VEGETABLES) }
-    var priceText by remember { mutableStateOf("") }
-    var unit by remember { mutableStateOf("kg") }
-    var stockText by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var isOrganic by remember { mutableStateOf(true) }
-    var isSuccess by remember { mutableStateOf(false) }
+    val mandiRates by viewModel.mandiRates.collectAsState()
 
-    val currentBenchmark = when (selectedCategory) {
-        ProductCategory.VEGETABLES -> 26.0
-        ProductCategory.GRAINS -> 48.0
-        ProductCategory.PULSES -> 140.0
-        ProductCategory.SPICES -> 70.0
-        ProductCategory.DAIRY -> 1200.0
-        else -> 350.0
+    var name by remember { mutableStateOf("Tomato") }
+    var quantityText by remember { mutableStateOf("100") }
+    var unit by remember { mutableStateOf("kg") }
+    var priceText by remember { mutableStateOf("22") }
+    var selectedCategory by remember { mutableStateOf(ProductCategory.VEGETABLES) }
+
+    // Automatic Buldhana Market Rate lookup from backend
+    val currentBuldhanaMarketRate = remember(name, selectedCategory, mandiRates) {
+        val match = mandiRates.firstOrNull { rate ->
+            rate.district.equals("Buldhana", ignoreCase = true) &&
+            (rate.commodity.contains(name, ignoreCase = true) ||
+             rate.commodityMr.contains(name, ignoreCase = true) ||
+             rate.commodityHi.contains(name, ignoreCase = true) ||
+             rate.category == selectedCategory)
+        }
+        match?.modalPrice ?: 25.0
+    }
+
+    val sellerPrice = priceText.toDoubleOrNull() ?: 0.0
+
+    // Section 9: Simple Price Comparison computation
+    val comparisonMessage = remember(sellerPrice, currentBuldhanaMarketRate) {
+        val diff = sellerPrice - currentBuldhanaMarketRate
+        when {
+            sellerPrice <= 0.0 -> ""
+            diff < 0 -> "🟢 Good Deal (₹${abs(diff).toInt()} lower than Buldhana mandi rate)"
+            diff > 0 -> "⚠️ Warning: ₹${diff.toInt()} higher than Buldhana mandi rate"
+            else -> "🟢 Fair Deal (Same as Buldhana mandi rate)"
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(AppStrings.get("add_new_produce", lang), fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = { Text("Add Product", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = RuralSurface)
             )
-        }
+        },
+        containerColor = RuralBackground
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(18.dp)
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Product Name
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text(AppStrings.get("product_name", lang)) },
-                placeholder = { Text("e.g. Fresh Red Onions, A2 Cow Ghee, Warli Vase") },
+                label = { Text("Product Name") },
+                placeholder = { Text("e.g. Tomato, Soybean, Cotton, Tur Dal") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("add_product_name_input")
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text("Category", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                listOf(ProductCategory.VEGETABLES, ProductCategory.GRAINS, ProductCategory.PULSES, ProductCategory.HANDICRAFTS).forEach { cat ->
-                    val isSel = selectedCategory == cat
-                    FilterChip(
-                        selected = isSel,
-                        onClick = { selectedCategory = cat },
-                        label = { Text("${cat.iconEmoji} ${cat.titleEn}", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = AgriGreenPrimary,
-                            selectedLabelColor = Color.White
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
+            // Quantity & Unit
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
-                    value = priceText,
-                    onValueChange = { priceText = it },
-                    label = { Text(AppStrings.get("price_per_unit", lang)) },
-                    placeholder = { Text("₹ Price") },
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("add_product_price_input")
+                    value = quantityText,
+                    onValueChange = { quantityText = it },
+                    label = { Text("Quantity") },
+                    placeholder = { Text("100") },
+                    modifier = Modifier.weight(1f)
                 )
                 OutlinedTextField(
                     value = unit,
                     onValueChange = { unit = it },
-                    label = { Text(AppStrings.get("unit_type", lang)) },
-                    placeholder = { Text("kg / quintal / pc") },
+                    label = { Text("Unit") },
+                    placeholder = { Text("kg / quintal") },
                     modifier = Modifier.weight(1f)
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Real-time Mandi Rate benchmark notification
+            // Section 8: Current Buldhana Market Rate display (automatic)
             Card(
                 colors = CardDefaults.cardColors(containerColor = AgriGreenContainer),
                 shape = RoundedCornerShape(10.dp),
@@ -396,17 +371,17 @@ fun AddProductScreen(
                     modifier = Modifier.padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.TrendingUp, contentDescription = null, tint = AgriGreenDark)
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null, tint = AgriGreenDark)
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Live APMC Benchmark for ${selectedCategory.titleEn}",
-                            fontSize = 12.sp,
+                            text = "Current Buldhana Market Rate: ₹${currentBuldhanaMarketRate.toInt()}/$unit",
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = OnAgriGreenContainer
+                            color = AgriGreenDark
                         )
                         Text(
-                            text = "Wholesale rate is approx. ₹${currentBenchmark.toInt()}/$unit. Pricing competitively boosts sales by 3x.",
+                            text = "Based on official Buldhana APMC Mandi rates",
                             fontSize = 11.sp,
                             color = TextSecondary
                         )
@@ -414,68 +389,85 @@ fun AddProductScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
+            // Your Selling Price
             OutlinedTextField(
-                value = stockText,
-                onValueChange = { stockText = it },
-                label = { Text("Stock Quantity Available") },
-                placeholder = { Text("e.g. 500") },
-                modifier = Modifier.fillMaxWidth()
+                value = priceText,
+                onValueChange = { priceText = it },
+                label = { Text("Your Selling Price (₹/$unit)") },
+                placeholder = { Text("22") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("add_product_price_input")
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Produce Description & Harvest Date") },
-                placeholder = { Text("Harvested yesterday, sun-cured, natural pesticide-free...") },
-                minLines = 3,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = isOrganic,
-                    onCheckedChange = { isOrganic = it },
-                    colors = CheckboxDefaults.colors(checkedColor = AgriGreenPrimary)
-                )
-                Text(
-                    text = "🌱 Certified Organic / Naturally Grown without chemicals",
-                    fontSize = 13.sp,
-                    color = TextPrimary
-                )
+            // Section 9: Seller Price Comparison box
+            if (comparisonMessage.isNotEmpty()) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (sellerPrice <= currentBuldhanaMarketRate) Color(0xFFE8F5E9) else SaffronContainer
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "Buldhana Market Rate: ₹${currentBuldhanaMarketRate.toInt()}/$unit",
+                            fontSize = 12.sp,
+                            color = TextSecondary
+                        )
+                        Text(
+                            text = "Your Price: ₹${sellerPrice.toInt()}/$unit",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = comparisonMessage,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (sellerPrice <= currentBuldhanaMarketRate) AgriGreenDark else SaffronAccent
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            // Photo Placeholder
+            OutlinedButton(
+                onClick = {},
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.PhotoCamera, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Product Photo: [ Add Photo ]")
+            }
 
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Add Product Button
             Button(
                 onClick = {
-                    val price = priceText.toDoubleOrNull() ?: 30.0
-                    val stock = stockText.toDoubleOrNull() ?: 100.0
+                    val price = priceText.toDoubleOrNull() ?: 22.0
+                    val qty = quantityText.toDoubleOrNull() ?: 100.0
                     viewModel.addProduct(
-                        name = name.ifEmpty { "Fresh Farm Produce" },
+                        name = name.ifEmpty { "Farm Fresh Produce" },
                         category = selectedCategory,
                         price = price,
                         unit = unit.ifEmpty { "kg" },
-                        stock = stock,
-                        description = description.ifEmpty { "Freshly harvested produce directly from farm." },
-                        isOrganic = isOrganic
+                        stock = qty,
+                        description = "Direct farm harvest from Buldhana."
                     )
-                    isSuccess = true
                     onBack()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(50.dp)
                     .testTag("publish_produce_button"),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AgriGreenPrimary)
             ) {
-                Text(AppStrings.get("publish_product", lang), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Add Product", fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

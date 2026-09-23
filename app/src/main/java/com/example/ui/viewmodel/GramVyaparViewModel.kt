@@ -24,7 +24,12 @@ enum class AppDestination {
     CHECKOUT,
     ORDER_SUCCESS,
     TRAINING_DETAIL,
-    ARTISAN_DETAIL
+    ARTISAN_DETAIL,
+    SELLER_DASHBOARD,
+    ADD_PRODUCT,
+    DELIVERY_DASHBOARD,
+    ADMIN_DASHBOARD,
+    MANDI_RATES
 }
 
 enum class SortBy {
@@ -40,7 +45,7 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
     private val _currentDestination = MutableStateFlow(AppDestination.SPLASH)
     val currentDestination: StateFlow<AppDestination> = _currentDestination.asStateFlow()
 
-    // Role-based Active Bottom Nav Tab (Index 0..4)
+    // Clean 5-Tab Navigation Bar: 0: Home | 1: Rates | 2: Cart | 3: Notifications | 4: Profile
     private val _activeTab = MutableStateFlow(0)
     val activeTab: StateFlow<Int> = _activeTab.asStateFlow()
 
@@ -65,10 +70,6 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
     val selectedSort = MutableStateFlow(SortBy.POPULARITY)
     val showFilterSheet = MutableStateFlow(false)
 
-    // Mandi Rates Screen State
-    val selectedMandiDistrict = MutableStateFlow("All Mandis")
-    val selectedRateCategory = MutableStateFlow(ProductCategory.ALL)
-
     // Repository Flows
     val language = repository.currentLanguage
     val user = repository.currentUser
@@ -79,6 +80,7 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
     val artisans = repository.artisans
     val trainingModules = repository.trainingModules
     val notifications = repository.notifications
+    val isMandiServiceOnline = repository.isMandiServiceOnline
 
     data class FilterCriteria(
         val query: String = "",
@@ -95,7 +97,7 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
         FilterCriteria(q, cat, price, organic, sort)
     }
 
-    // Filtered Products Flow
+    // Filtered Products Flow - strictly Buldhana District
     val filteredProducts: StateFlow<List<Product>> = combine(
         allProducts,
         filterCriteria
@@ -109,6 +111,7 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
                 it.nameHi.lowercase().contains(q) ||
                 it.nameMr.lowercase().contains(q) ||
                 it.sellerName.lowercase().contains(q) ||
+                it.village.lowercase().contains(q) ||
                 it.district.lowercase().contains(q)
             }
         }
@@ -140,13 +143,20 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
         _activeTab.value = index
     }
 
+    fun setSearchQuery(query: String) {
+        searchQuery.value = query
+    }
+
+    fun setCategory(category: ProductCategory) {
+        selectedCategory.value = category
+    }
+
     fun setLanguage(lang: AppLanguage) {
         repository.setLanguage(lang)
     }
 
     fun switchRole(role: UserRole) {
         repository.switchRole(role)
-        _activeTab.value = 0 // Reset to first tab of new role
     }
 
     fun selectProduct(product: Product) {
@@ -190,9 +200,9 @@ class GramVyaparViewModel(private val repository: GramVyaparRepository) : ViewMo
         unit: String,
         stock: Double,
         description: String,
-        isOrganic: Boolean
+        isOrganic: Boolean = false
     ) {
-        repository.addProduct(name, category, price, unit, stock, description, isOrganic)
+        repository.addProduct(name, category, price, unit, stock, description)
     }
 
     fun markTrainingComplete(id: String) {

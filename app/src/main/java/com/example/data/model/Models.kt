@@ -1,33 +1,33 @@
 package com.example.data.model
 
 enum class AppLanguage(val code: String, val nativeName: String, val englishName: String) {
-    ENGLISH("en", "English", "English"),
+    MARATHI("mr", "मराठी", "Marathi"),
     HINDI("hi", "हिंदी", "Hindi"),
-    MARATHI("mr", "मराठी", "Marathi")
+    ENGLISH("en", "English", "English")
 }
 
 enum class UserRole(val displayName: String) {
     BUYER("Buyer / खरेदीदार"),
     SELLER("Farmer & Seller / शेतकरी"),
-    DELIVERY("Delivery Partner / वितरण"),
-    ADMIN("Admin / प्रशासक")
+    DELIVERY("Delivery Partner / डिलिव्हरी"),
+    ADMIN("Admin / व्यवस्थापक")
 }
 
 data class UserProfile(
-    val id: String = "user_1",
-    val name: String = "Ramesh Patil",
-    val phone: String = "+91 98223 45678",
-    val email: String = "ramesh.patil@gramvyapar.in",
+    val id: String = "user_bld_01",
+    val name: String = "Gajanan Patil",
+    val phone: String = "+91 98229 45678",
+    val email: String = "gajanan.patil@gramvyapar.in",
     val role: UserRole = UserRole.BUYER,
-    val village: String = "Dindori",
-    val taluka: String = "Dindori",
-    val district: String = "Nashik",
+    val village: String = "Chikhli",
+    val taluka: String = "Chikhli",
+    val district: String = "Buldhana",
     val state: String = "Maharashtra",
-    val pincode: String = "422202",
+    val pincode: String = "443201",
     val isKycVerified: Boolean = true,
-    val aadhaarMasked: String = "XXXX-XXXX-4829",
-    val panNumber: String = "ABCDE1234F",
-    val walletBalance: Double = 1250.0
+    val aadhaarMasked: String = "XXXX-XXXX-7821",
+    val panNumber: String = "ABCDP1234F",
+    val walletBalance: Double = 1450.0
 )
 
 enum class ProductCategory(val titleEn: String, val titleHi: String, val titleMr: String, val iconEmoji: String) {
@@ -36,8 +36,9 @@ enum class ProductCategory(val titleEn: String, val titleHi: String, val titleMr
     FRUITS("Fruits", "फल", "फळे", "🍎"),
     GRAINS("Grains", "अनाज", "धान्य", "🌾"),
     PULSES("Pulses", "दालें", "कडधान्ये", "🫘"),
-    SPICES("Spices", "मसाले", "मसाले", "🌶️"),
-    DAIRY("Dairy", "डेयरी", "दुग्ध उत्पादने", "🥛"),
+    OILSEEDS("Oilseeds", "तिलहन", "गळीत धान्य (सोयाबीन)", "🌻"),
+    COTTON("Cotton", "कपास", "कापूस (रुई)", "☁️"),
+    OTHER_AGRI("Other Agriculture", "अन्य कृषि", "इतर शेतीमाल / मसाले", "🌶️"),
     HANDICRAFTS("Handicrafts", "हस्तशिल्प", "हस्तकला", "🏺")
 }
 
@@ -53,10 +54,10 @@ data class Product(
     val sellerName: String,
     val sellerPhone: String,
     val village: String,
-    val district: String,
-    val isOrganic: Boolean = true,
+    val district: String = "Buldhana",
+    val isOrganic: Boolean = false,
     val rating: Double = 4.8,
-    val reviewCount: Int = 34,
+    val reviewCount: Int = 28,
     val marketMandiRate: Double, // wholesale mandi rate comparison
     val description: String,
     val isArtisanCraft: Boolean = false,
@@ -76,25 +77,26 @@ data class MandiRate(
     val commodityHi: String,
     val commodityMr: String,
     val category: ProductCategory,
-    val mandiName: String,
-    val district: String,
-    val state: String,
+    val mandiName: String, // e.g. "Khamgaon", "Buldhana", "Malkapur", "Shegaon", "Chikhli", "Mehkar", "Deulgaon Raja"
+    val district: String = "Buldhana",
+    val state: String = "Maharashtra",
     val modalPrice: Double, // in ₹/quintal or ₹/kg
     val minPrice: Double,
     val maxPrice: Double,
     val unit: String = "Quintal",
-    val changePercentage: Double, // e.g. +3.5 or -2.1
-    val trend: List<Double>, // 7-day trend values
-    val lastUpdated: String = "Today, 08:30 AM"
+    val changePercentage: Double = 0.0,
+    val lastUpdated: String = "Today, 10:30 AM",
+    val isAvailable: Boolean = true,
+    val isCached: Boolean = false
 )
 
-enum class OrderStatus(val title: String) {
-    PLACED("Order Placed / ऑर्डर दिली"),
-    CONFIRMED("Confirmed by Farmer / शेतकऱ्याने पुष्टी केली"),
-    PICKED_UP("Picked Up / संकलित केले"),
-    OUT_FOR_DELIVERY("Out for Delivery / वितरणासाठी बाहेर"),
-    DELIVERED("Delivered / वितरित झाले"),
-    CANCELLED("Cancelled / रद्द केले")
+enum class OrderStatus(val titleEn: String, val titleMr: String) {
+    PLACED("Order Placed", "ऑर्डर दिली"),
+    CONFIRMED("Confirmed", "स्वीकारली"),
+    PREPARING("Preparing", "तयार करत आहे"),
+    OUT_FOR_DELIVERY("Out for Delivery", "वितरणासाठी निघाली"),
+    DELIVERED("Delivered", "वितरित झाली"),
+    CANCELLED("Cancelled", "रद्द केली")
 }
 
 data class Order(
@@ -112,7 +114,7 @@ data class Order(
     val orderStatus: OrderStatus,
     val deliveryAddress: String,
     val deliveryOtp: String = "4826",
-    val assignedDeliveryPartner: String = "Suresh Shinde (+91 94220 11223)"
+    val assignedDeliveryPartner: String = "Santosh Wankhede (Buldhana Express)"
 )
 
 data class Artisan(
@@ -120,14 +122,13 @@ data class Artisan(
     val name: String,
     val craftType: String,
     val village: String,
-    val district: String,
-    val state: String,
+    val district: String = "Buldhana",
+    val state: String = "Maharashtra",
     val experienceYears: Int,
     val story: String,
     val contactPhone: String,
     val specialties: List<String>,
-    val rating: Double = 4.9,
-    val supportBadge: String = "Vocal for Local • Certified Artisan"
+    val rating: Double = 4.9
 )
 
 data class TrainingModule(
@@ -135,12 +136,11 @@ data class TrainingModule(
     val title: String,
     val titleHi: String,
     val titleMr: String,
-    val platformTag: String,
+    val category: String, // Branding, Packaging, Selling Online, Digital Marketing, Direct Farm Sales
     val duration: String,
     val description: String,
     val keyTakeaways: List<String>,
-    var isCompleted: Boolean = false,
-    val certificateTitle: String
+    var isCompleted: Boolean = false
 )
 
 data class NotificationItem(
@@ -148,6 +148,6 @@ data class NotificationItem(
     val title: String,
     val message: String,
     val timestamp: String,
-    val type: String, // "RATE", "ORDER", "WEATHER", "SCHEME"
+    val type: String = "ALERT", // "ORDER", "RATE", "ALERT"
     val isRead: Boolean = false
 )

@@ -1,36 +1,30 @@
 package com.example.data.repository
 
 import com.example.data.local.AppDatabase
-import com.example.data.local.CartItemEntity
-import com.example.data.local.OrderEntity
-import com.example.data.local.ProductEntity
 import com.example.data.model.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 class GramVyaparRepository(private val database: AppDatabase) {
-    private val scope = CoroutineScope(Dispatchers.IO)
 
-    // Current State
-    private val _currentLanguage = MutableStateFlow(AppLanguage.ENGLISH)
+    // Default language is Marathi (preferred for Buldhana local community)
+    private val _currentLanguage = MutableStateFlow(AppLanguage.MARATHI)
     val currentLanguage: StateFlow<AppLanguage> = _currentLanguage.asStateFlow()
 
+    // Default user is fixed to Buldhana District, Maharashtra
     private val _currentUser = MutableStateFlow(
         UserProfile(
-            id = "user_01",
-            name = "Ramesh Tukaram Patil",
-            phone = "+91 98220 54321",
-            email = "ramesh.patil@gramvyapar.in",
+            id = "user_bld_01",
+            name = "Gajanan Patil",
+            phone = "+91 98229 45678",
+            email = "gajanan.patil@gramvyapar.in",
             role = UserRole.BUYER,
-            village = "Dindori",
-            taluka = "Dindori",
-            district = "Nashik",
+            village = "Chikhli",
+            taluka = "Chikhli",
+            district = "Buldhana",
             state = "Maharashtra",
-            pincode = "422202",
+            pincode = "443201",
             isKycVerified = true,
             walletBalance = 1450.0
         )
@@ -43,8 +37,12 @@ class GramVyaparRepository(private val database: AppDatabase) {
     private val _cart = MutableStateFlow<List<CartItem>>(emptyList())
     val cart: StateFlow<List<CartItem>> = _cart.asStateFlow()
 
+    // Buldhana District Market Rate Cache & Service
     private val _mandiRates = MutableStateFlow<List<MandiRate>>(emptyList())
     val mandiRates: StateFlow<List<MandiRate>> = _mandiRates.asStateFlow()
+
+    private val _isMandiServiceOnline = MutableStateFlow(true)
+    val isMandiServiceOnline: StateFlow<Boolean> = _isMandiServiceOnline.asStateFlow()
 
     private val _orders = MutableStateFlow<List<Order>>(emptyList())
     val orders: StateFlow<List<Order>> = _orders.asStateFlow()
@@ -59,7 +57,7 @@ class GramVyaparRepository(private val database: AppDatabase) {
     val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
 
     init {
-        initInitialData()
+        loadBuldhanaMarketData()
     }
 
     fun setLanguage(language: AppLanguage) {
@@ -71,427 +69,446 @@ class GramVyaparRepository(private val database: AppDatabase) {
     }
 
     fun updateUser(updated: UserProfile) {
-        _currentUser.value = updated
+        // Enforce Buldhana District consistency
+        _currentUser.value = updated.copy(district = "Buldhana", state = "Maharashtra")
     }
 
-    private fun initInitialData() {
-        val initialProducts = listOf(
-            Product(
-                id = "p1",
-                name = "Nashik Fresh Red Onions (Direct Harvest)",
-                nameHi = "नासिक ताजा लाल प्याज (सीधा खेत से)",
-                nameMr = "नाशिकचे ताजे लाल कांदे (थेट शेतातून)",
-                category = ProductCategory.VEGETABLES,
-                price = 24.0,
-                unit = "kg",
-                stock = 500.0,
-                sellerName = "Kisan Baburao Borse",
-                sellerPhone = "+91 94231 87654",
-                village = "Pimpalgaon Baswant",
-                district = "Nashik",
-                isOrganic = false,
-                rating = 4.8,
-                reviewCount = 89,
-                marketMandiRate = 26.5,
-                description = "Grade-A sun-cured Nashik red onions with long shelf-life. Harvested 2 days ago and directly sorted at the farm.",
-                badge = "Best Deal • 10% Below Mandi"
-            ),
-            Product(
-                id = "p2",
-                name = "Organic Sharbati Wheat (M.P. Sehore)",
-                nameHi = "जैविक शरबती गेहूं (सीहोर)",
-                nameMr = "सेंद्रिय शरबती गहू (सीहोर)",
-                category = ProductCategory.GRAINS,
-                price = 48.0,
-                unit = "kg",
-                stock = 1200.0,
-                sellerName = "Balram Farmer Producer Co.",
-                sellerPhone = "+91 98260 11442",
-                village = "Sehore Rural",
-                district = "Sehore",
-                isOrganic = true,
-                rating = 4.9,
-                reviewCount = 142,
-                marketMandiRate = 52.0,
-                description = "Golden heavy grains, naturally rain-fed and stone grounded aroma. 100% pesticide-free lab certified.",
-                badge = "Organic Certified"
-            ),
-            Product(
-                id = "p3",
-                name = "Farm Fresh Polyhouse Vine Tomatoes",
-                nameHi = "पॉलीहाउस ताजा बेल वाले टमाटर",
-                nameMr = "पॉलीहाऊस ताजे वेल टोमॅटो",
-                category = ProductCategory.VEGETABLES,
-                price = 22.0,
-                unit = "kg",
-                stock = 350.0,
-                sellerName = "Sunita Ganesh Gaikwad",
-                sellerPhone = "+91 97654 32109",
-                village = "Narayangaon",
-                district = "Pune",
-                isOrganic = true,
-                rating = 4.7,
-                reviewCount = 56,
-                marketMandiRate = 28.0,
-                description = "Firm, juicy, naturally ripened polyhouse tomatoes rich in lycopene. Delivered within 24 hours of harvest.",
-                badge = "Direct Harvest"
-            ),
-            Product(
-                id = "p4",
-                name = "Traditional Kolhapuri Jaggery (Gul)",
-                nameHi = "पारंपरिक कोल्हापुरी जैविक गुड़",
-                nameMr = "पारंपरिक सेंद्रिय कोल्हापुरी गूळ",
-                category = ProductCategory.SPICES,
-                price = 65.0,
-                unit = "kg",
-                stock = 400.0,
-                sellerName = "Shree Mahalaxmi Agro FPO",
-                sellerPhone = "+91 98224 88776",
-                village = "Karveer",
-                district = "Kolhapur",
-                isOrganic = true,
-                rating = 4.9,
-                reviewCount = 210,
-                marketMandiRate = 70.0,
-                description = "Unrefined chemical-free golden brown block jaggery made from fresh sugarcane juice in traditional iron pans.",
-                badge = "GI Tagged"
-            ),
-            Product(
-                id = "p5",
-                name = "Desi Cow A2 Bilona Ghee (Grass-Fed)",
-                nameHi = "देसी गाय का A2 बिलोना घी",
-                nameMr = "देशी गाईचे A2 बिलोना तूप",
-                category = ProductCategory.DAIRY,
-                price = 1250.0,
-                unit = "litre",
-                stock = 45.0,
-                sellerName = "Gokul Gaushala Trust",
-                sellerPhone = "+91 94033 22110",
-                village = "Sangamner",
-                district = "Ahmednagar",
-                isOrganic = true,
-                rating = 5.0,
-                reviewCount = 94,
-                marketMandiRate = 1400.0,
-                description = "Hand-churned curd bilona ghee prepared on firewood in earthen pots. Rich in aroma and Ayurvedic vitality.",
-                badge = "100% Pure Bilona"
-            ),
-            Product(
-                id = "p6",
-                name = "Polished Farm Split Tur Dal (Pigeon Pea)",
-                nameHi = "खेत की शुद्ध तूर दाल",
-                nameMr = "घरगुती पॉलिश नसलेली तूर डाळ",
-                category = ProductCategory.PULSES,
-                price = 145.0,
-                unit = "kg",
-                stock = 600.0,
-                sellerName = "Vidarbha Farmers Federation",
-                sellerPhone = "+91 97633 44556",
-                village = "Akola Rural",
-                district = "Akola",
-                isOrganic = true,
-                rating = 4.8,
-                reviewCount = 78,
-                marketMandiRate = 158.0,
-                description = "Unpolished protein-rich dal grown in the fertile black soils of Vidarbha. Easy to digest and cooks quickly.",
-                badge = "High Protein"
-            ),
-            Product(
-                id = "p7",
-                name = "Handcrafted Terracotta Clay Water Pot (Matka)",
-                nameHi = "हस्तनिर्मित मिट्टी का घड़ा (मटका)",
-                nameMr = "हस्तकला मातीचे माठ (सुगंधी गार पाणी)",
-                category = ProductCategory.HANDICRAFTS,
-                price = 320.0,
-                unit = "piece",
-                stock = 25.0,
-                sellerName = "Dattatray Kumbhar (Master Potter)",
-                sellerPhone = "+91 98901 23456",
-                village = "Kumbharwada, Bhigwan",
-                district = "Pune",
-                isOrganic = true,
-                rating = 4.9,
-                reviewCount = 48,
-                marketMandiRate = 380.0,
-                description = "Naturally cooling earthen pitcher fired in wood kilns. Adds natural alkaline minerals to drinking water.",
-                isArtisanCraft = true,
-                badge = "Support Artisan"
-            ),
-            Product(
-                id = "p8",
-                name = "Warli Tribal Canvas Painting Frame",
-                nameHi = "वारली आदिवासी हस्तकला फ्रेम",
-                nameMr = "वारली आदिवासी हस्तनिर्मित चित्रकला",
-                category = ProductCategory.HANDICRAFTS,
-                price = 850.0,
-                unit = "piece",
-                stock = 15.0,
-                sellerName = "Janu Barku Vartha (Warli Artist)",
-                sellerPhone = "+91 94211 99887",
-                village = "Ganjad",
-                district = "Palghar",
-                isOrganic = true,
-                rating = 5.0,
-                reviewCount = 33,
-                marketMandiRate = 1200.0,
-                description = "Authentic rice paste painting on natural cow dung treated canvas depicting Tarpa celebration dance of harvest.",
-                isArtisanCraft = true,
-                badge = "Tribal Heritage"
-            )
-        )
-        _products.value = initialProducts
+    /**
+     * Backend Market Rate Service:
+     * Strictly filters for Maharashtra State and Buldhana District markets only.
+     * Rejects any external, out-of-district market data.
+     */
+    fun getBuldhanaMarketRateForProduct(productName: String, category: ProductCategory): MandiRate? {
+        val q = productName.lowercase()
+        return _mandiRates.value.firstOrNull { rate ->
+            rate.district.equals("Buldhana", ignoreCase = true) &&
+            (rate.commodity.lowercase().contains(q) ||
+             rate.commodityMr.lowercase().contains(q) ||
+             rate.commodityHi.lowercase().contains(q) ||
+             rate.category == category)
+        }
+    }
 
-        val initialRates = listOf(
+    private fun loadBuldhanaMarketData() {
+        // Authentic Buldhana District Market Mandi Rates
+        val rawBuldhanaRates = listOf(
             MandiRate(
-                id = "mr1",
-                commodity = "Wheat (Sharbati / Lokwan)",
-                commodityHi = "गेहूं (शरबती / लोकवान)",
-                commodityMr = "गहू (शरबती / लोकवन)",
-                category = ProductCategory.GRAINS,
-                mandiName = "Pune APMC (Gultekdi)",
-                district = "Pune",
-                state = "Maharashtra",
-                modalPrice = 2750.0,
-                minPrice = 2400.0,
-                maxPrice = 3100.0,
-                changePercentage = 3.2,
-                trend = listOf(2600.0, 2620.0, 2650.0, 2690.0, 2710.0, 2730.0, 2750.0)
-            ),
-            MandiRate(
-                id = "mr2",
-                commodity = "Red Onion (Garva / Summer)",
-                commodityHi = "लाल प्याज (ग्रीष्मकालीन)",
-                commodityMr = "लाल कांदा (उन्हाळी गरवा)",
-                category = ProductCategory.VEGETABLES,
-                mandiName = "Lasalgaon Mandi (Asia's Largest)",
-                district = "Nashik",
-                state = "Maharashtra",
-                modalPrice = 1850.0,
-                minPrice = 1200.0,
-                maxPrice = 2300.0,
-                changePercentage = -1.8,
-                trend = listOf(1980.0, 1950.0, 1920.0, 1900.0, 1880.0, 1860.0, 1850.0)
-            ),
-            MandiRate(
-                id = "mr3",
-                commodity = "Hybrid Red Tomato",
-                commodityHi = "टमाटर (हाइब्रिड लाल)",
-                commodityMr = "टोमॅटो (हायब्रिड लाल)",
-                category = ProductCategory.VEGETABLES,
-                mandiName = "Narayangaon Tomato Market",
-                district = "Pune",
-                state = "Maharashtra",
-                modalPrice = 1600.0,
-                minPrice = 1100.0,
-                maxPrice = 2050.0,
-                changePercentage = 6.4,
-                trend = listOf(1350.0, 1400.0, 1450.0, 1500.0, 1540.0, 1580.0, 1600.0)
-            ),
-            MandiRate(
-                id = "mr4",
+                id = "bld_mr_1",
                 commodity = "Soybean (Yellow)",
                 commodityHi = "सोयाबीन (पीला)",
                 commodityMr = "सोयाबीन (पिवळा)",
-                category = ProductCategory.PULSES,
-                mandiName = "Indore Krishi Upaj Mandi",
-                district = "Indore",
-                state = "Madhya Pradesh",
-                modalPrice = 4650.0,
-                minPrice = 4300.0,
-                maxPrice = 4820.0,
-                changePercentage = 2.1,
-                trend = listOf(4450.0, 4490.0, 4520.0, 4560.0, 4600.0, 4620.0, 4650.0)
+                category = ProductCategory.OILSEEDS,
+                mandiName = "Khamgaon",
+                district = "Buldhana",
+                state = "Maharashtra",
+                modalPrice = 4800.0,
+                minPrice = 4550.0,
+                maxPrice = 4920.0,
+                unit = "Quintal",
+                changePercentage = 2.4,
+                lastUpdated = "Today, 10:30 AM",
+                isAvailable = true
             ),
             MandiRate(
-                id = "mr5",
-                commodity = "Tur / Arhar Dal (Raw Pod)",
-                commodityHi = "अरहर / तूर दाल",
-                commodityMr = "तूर / अरहर डाळ",
-                category = ProductCategory.PULSES,
-                mandiName = "Akola APMC",
-                district = "Akola",
+                id = "bld_mr_2",
+                commodity = "Tomato",
+                commodityHi = "टमाटर",
+                commodityMr = "टोमॅटो",
+                category = ProductCategory.VEGETABLES,
+                mandiName = "Buldhana",
+                district = "Buldhana",
                 state = "Maharashtra",
-                modalPrice = 9850.0,
-                minPrice = 8900.0,
-                maxPrice = 10400.0,
-                changePercentage = 4.8,
-                trend = listOf(9200.0, 9350.0, 9480.0, 9600.0, 9720.0, 9800.0, 9850.0)
+                modalPrice = 25.0,
+                minPrice = 20.0,
+                maxPrice = 30.0,
+                unit = "kg",
+                changePercentage = -1.2,
+                lastUpdated = "Today, 10:30 AM",
+                isAvailable = true
             ),
             MandiRate(
-                id = "mr6",
-                commodity = "Kolhapuri Organic Jaggery Block",
-                commodityHi = "कोल्हापुरी गुड़",
-                commodityMr = "कोल्हापुरी गूळ ढेप",
-                category = ProductCategory.SPICES,
-                mandiName = "Kolhapur Shahu Market Yard",
-                district = "Kolhapur",
+                id = "bld_mr_3",
+                commodity = "Cotton (Medium Staple)",
+                commodityHi = "कपास (रुई)",
+                commodityMr = "कापूस (मध्यम धागा)",
+                category = ProductCategory.COTTON,
+                mandiName = "Malkapur",
+                district = "Buldhana",
                 state = "Maharashtra",
-                modalPrice = 4200.0,
-                minPrice = 3800.0,
-                maxPrice = 4500.0,
-                changePercentage = 1.2,
-                trend = listOf(4100.0, 4120.0, 4140.0, 4160.0, 4180.0, 4190.0, 4200.0)
+                modalPrice = 7200.0,
+                minPrice = 6900.0,
+                maxPrice = 7450.0,
+                unit = "Quintal",
+                changePercentage = 1.8,
+                lastUpdated = "Today, 09:45 AM",
+                isAvailable = true
+            ),
+            MandiRate(
+                id = "bld_mr_4",
+                commodity = "Tur / Pigeon Pea",
+                commodityHi = "तूर / अरहर दाल",
+                commodityMr = "तूर (गावरान)",
+                category = ProductCategory.PULSES,
+                mandiName = "Deulgaon Raja",
+                district = "Buldhana",
+                state = "Maharashtra",
+                modalPrice = 9600.0,
+                minPrice = 9100.0,
+                maxPrice = 9950.0,
+                unit = "Quintal",
+                changePercentage = 3.1,
+                lastUpdated = "Today, 10:15 AM",
+                isAvailable = true
+            ),
+            MandiRate(
+                id = "bld_mr_5",
+                commodity = "Wheat (Lokwan)",
+                commodityHi = "गेहूं (लोकवान)",
+                commodityMr = "गहू (लोकवन)",
+                category = ProductCategory.GRAINS,
+                mandiName = "Mehkar",
+                district = "Buldhana",
+                state = "Maharashtra",
+                modalPrice = 2650.0,
+                minPrice = 2400.0,
+                maxPrice = 2800.0,
+                unit = "Quintal",
+                changePercentage = 0.5,
+                lastUpdated = "Today, 09:30 AM",
+                isAvailable = true
+            ),
+            MandiRate(
+                id = "bld_mr_6",
+                commodity = "Green Chillies",
+                commodityHi = "हरी मिर्च",
+                commodityMr = "हिरवी तिखट मिरची",
+                category = ProductCategory.VEGETABLES,
+                mandiName = "Chikhli",
+                district = "Buldhana",
+                state = "Maharashtra",
+                modalPrice = 38.0,
+                minPrice = 32.0,
+                maxPrice = 45.0,
+                unit = "kg",
+                changePercentage = 4.2,
+                lastUpdated = "Today, 08:30 AM",
+                isAvailable = true
+            ),
+            MandiRate(
+                id = "bld_mr_7",
+                commodity = "Sweet Oranges (Mosambi)",
+                commodityHi = "मौसंबी",
+                commodityMr = "गोड मोसंबी",
+                category = ProductCategory.FRUITS,
+                mandiName = "Shegaon",
+                district = "Buldhana",
+                state = "Maharashtra",
+                modalPrice = 42.0,
+                minPrice = 35.0,
+                maxPrice = 50.0,
+                unit = "kg",
+                changePercentage = 1.0,
+                lastUpdated = "Today, 09:00 AM",
+                isAvailable = true
             )
         )
-        _mandiRates.value = initialRates
 
-        val initialArtisans = listOf(
-            Artisan(
-                id = "art1",
-                name = "Dattatray Vitthal Kumbhar",
-                craftType = "Terracotta & Black Clay Pottery",
-                village = "Bhigwan",
-                district = "Pune",
-                state = "Maharashtra",
-                experienceYears = 28,
-                story = "4th generation master potter creating therapeutic natural clay vessels, tawas, and storage jars using local river silt.",
-                contactPhone = "+91 98901 23456",
-                specialties = listOf("Water Matkas", "Clay Biryani Pots", "Earthen Tawas", "Decorative Diyas")
+        // Validate that data belongs strictly to Buldhana District, Maharashtra
+        _mandiRates.value = rawBuldhanaRates.filter {
+            it.district.equals("Buldhana", ignoreCase = true) &&
+            it.state.equals("Maharashtra", ignoreCase = true)
+        }
+
+        // Local Buldhana Products
+        val buldhanaProducts = listOf(
+            Product(
+                id = "p_bld_1",
+                name = "Fresh Red Tomatoes",
+                nameHi = "ताजा लाल टमाटर",
+                nameMr = "ताजे लाल टोमॅटो",
+                category = ProductCategory.VEGETABLES,
+                price = 22.0,
+                unit = "kg",
+                stock = 300.0,
+                sellerName = "Suresh Gaikwad",
+                sellerPhone = "+91 98221 11223",
+                village = "Chikhli Rural",
+                district = "Buldhana",
+                isOrganic = false,
+                rating = 4.8,
+                reviewCount = 24,
+                marketMandiRate = 25.0,
+                description = "Naturally sun-ripened, farm-harvested tomatoes from Chikhli, Buldhana.",
+                badge = "₹3 Lower than Mandi"
             ),
-            Artisan(
-                id = "art2",
-                name = "Janu Barku Vartha",
-                craftType = "Authentic Warli Folk Art",
-                village = "Ganjad",
-                district = "Palghar",
-                state = "Maharashtra",
-                experienceYears = 22,
-                story = "National award winner keeping the 10th-century Warli geometric tribal storytelling tradition alive through eco-friendly canvas works.",
-                contactPhone = "+91 94211 99887",
-                specialties = listOf("Harvest Dance Canvas", "Bamboo Scroll Painting", "Wall Murals", "Lampshades")
+            Product(
+                id = "p_bld_2",
+                name = "Khamgaon Yellow Soybean",
+                nameHi = "खामगांव पीला सोयाबीन",
+                nameMr = "खामगाव पिवळा दर्जेदार सोयाबीन",
+                category = ProductCategory.OILSEEDS,
+                price = 47.0,
+                unit = "kg",
+                stock = 1500.0,
+                sellerName = "Baliram Deshmukh",
+                sellerPhone = "+91 94228 33445",
+                village = "Khamgaon Rural",
+                district = "Buldhana",
+                isOrganic = true,
+                rating = 4.9,
+                reviewCount = 42,
+                marketMandiRate = 48.0,
+                description = "High oil content, clean sorted yellow soybean directly from Khamgaon farm.",
+                badge = "Direct Farm Harvest"
             ),
-            Artisan(
-                id = "art3",
-                name = "Arundhati & Mohan Shinde",
-                craftType = "Traditional Paithani Silk Weaving",
-                village = "Yeola",
-                district = "Nashik",
-                state = "Maharashtra",
-                experienceYears = 34,
-                story = "Handloom weavers weaving pure zari peacock borders with natural dyes, empowering 18 rural women weavers in their cluster.",
-                contactPhone = "+91 98229 33211",
-                specialties = listOf("Pure Zari Sarees", "Silk Stoles", "Handloom Dupattas")
+            Product(
+                id = "p_bld_3",
+                name = "Malkapur Quality White Cotton",
+                nameHi = "मलकापुर सफेद कपास",
+                nameMr = "मलकापूर दर्जेदार पांढरा कापूस",
+                category = ProductCategory.COTTON,
+                price = 71.0,
+                unit = "kg",
+                stock = 2000.0,
+                sellerName = "Malkapur Kisan Samiti",
+                sellerPhone = "+91 98901 44556",
+                village = "Malkapur",
+                district = "Buldhana",
+                isOrganic = false,
+                rating = 4.7,
+                reviewCount = 18,
+                marketMandiRate = 72.0,
+                description = "Clean medium staple raw cotton picked by local farmers in Malkapur.",
+                badge = "Malkapur Cotton"
+            ),
+            Product(
+                id = "p_bld_4",
+                name = "Deulgaon Raja Desi Tur Dal",
+                nameHi = "देऊळगांव राजा शुद्ध तूर दाल",
+                nameMr = "देऊळगाव राजा गावरान तूर डाळ",
+                category = ProductCategory.PULSES,
+                price = 140.0,
+                unit = "kg",
+                stock = 450.0,
+                sellerName = "Ananda Patil",
+                sellerPhone = "+91 97654 88990",
+                village = "Deulgaon Raja",
+                district = "Buldhana",
+                isOrganic = true,
+                rating = 4.9,
+                reviewCount = 35,
+                marketMandiRate = 145.0,
+                description = "Unpolished, naturally rich desi tur dal grown in black cotton soil of Deulgaon Raja.",
+                badge = "Farm Direct"
+            ),
+            Product(
+                id = "p_bld_5",
+                name = "Mehkar Sharbati Wheat",
+                nameHi = "मेहकर शरबती गेहूं",
+                nameMr = "मेहकर शरबती सुवर्ण गहू",
+                category = ProductCategory.GRAINS,
+                price = 38.0,
+                unit = "kg",
+                stock = 800.0,
+                sellerName = "Kisan Tukaram",
+                sellerPhone = "+91 94033 66778",
+                village = "Mehkar",
+                district = "Buldhana",
+                isOrganic = true,
+                rating = 4.8,
+                reviewCount = 29,
+                marketMandiRate = 40.0,
+                description = "Golden grain Sharbati wheat, stone ground ready, high protein.",
+                badge = "Buldhana Wheat"
+            ),
+            Product(
+                id = "p_bld_6",
+                name = "Shegaon Fresh Sweet Oranges (Mosambi)",
+                nameHi = "शेगाव ताजा मौसंबी",
+                nameMr = "शेगाव ताजी गोड मोसंबी",
+                category = ProductCategory.FRUITS,
+                price = 40.0,
+                unit = "kg",
+                stock = 600.0,
+                sellerName = "Gajanan Orchard Farm",
+                sellerPhone = "+91 98223 99001",
+                village = "Shegaon",
+                district = "Buldhana",
+                isOrganic = true,
+                rating = 5.0,
+                reviewCount = 47,
+                marketMandiRate = 42.0,
+                description = "Juicy fresh table Mosambi harvested directly from Shegaon orchards.",
+                badge = "Fresh Pick"
+            ),
+            Product(
+                id = "p_bld_7",
+                name = "Chikhli Fresh Green Chillies",
+                nameHi = "चिखली हरी मिर्च",
+                nameMr = "चिखली ताजी हिरवी मिरची",
+                category = ProductCategory.VEGETABLES,
+                price = 35.0,
+                unit = "kg",
+                stock = 150.0,
+                sellerName = "Rambhau Shinde",
+                sellerPhone = "+91 97633 12345",
+                village = "Chikhli",
+                district = "Buldhana",
+                isOrganic = false,
+                rating = 4.6,
+                reviewCount = 19,
+                marketMandiRate = 38.0,
+                description = "Pungent, fresh green chillies direct from Chikhli morning harvest.",
+                badge = "Spicy Fresh"
+            ),
+            Product(
+                id = "p_bld_8",
+                name = "Handmade Buldhana Clay Water Pot (Matka)",
+                nameHi = "हस्तनिर्मित मिट्टी का घड़ा",
+                nameMr = "बुलढाणा अस्सल मातीचा माठ",
+                category = ProductCategory.HANDICRAFTS,
+                price = 180.0,
+                unit = "piece",
+                stock = 30.0,
+                sellerName = "Vitthal Kumbhar (Artisan)",
+                sellerPhone = "+91 98902 55667",
+                village = "Sindkhed Raja",
+                district = "Buldhana",
+                isOrganic = true,
+                rating = 4.9,
+                reviewCount = 22,
+                marketMandiRate = 220.0,
+                description = "Naturally cooling river-silt clay pitcher hand-thrown by rural potter in Sindkhed Raja.",
+                isArtisanCraft = true,
+                badge = "Rural Artisan"
             )
         )
-        _artisans.value = initialArtisans
+        _products.value = buldhanaProducts
 
-        val initialModules = listOf(
-            TrainingModule(
-                id = "tm1",
-                title = "Selling on Amazon KisanStore & Flipkart Krishi",
-                titleHi = "अमेज़न किसान और फ्लिपकार्ट कृषि पर ऑनलाइन बिक्री",
-                titleMr = "ॲमेझॉन किसान व फ्लिपकार्ट कृषीवर शेतमाल विक्री",
-                platformTag = "Amazon Kisan / Flipkart",
-                duration = "18 mins • 4 Lessons",
-                description = "Learn step-by-step onboarding for Farmer Producer Organizations (FPOs) and individual farmers to reach 100M+ buyers across India.",
-                keyTakeaways = listOf(
-                    "FPO GST & PAN onboarding document checklist",
-                    "Creating bulk listings with standardized weight units",
-                    "Packaging perishable items to prevent in-transit spoilage",
-                    "Receiving direct bank settlement within 48 hours"
-                ),
-                certificateTitle = "Certified Rural Digital Seller"
+        // Buldhana Artisans
+        val buldhanaArtisans = listOf(
+            Artisan(
+                id = "art_bld_1",
+                name = "Vitthal Kumbhar",
+                craftType = "Terracotta Pottery & Water Pots",
+                village = "Sindkhed Raja",
+                district = "Buldhana",
+                experienceYears = 26,
+                story = "Traditional potter from Sindkhed Raja creating naturally cooling clay matkas and cooking pots.",
+                contactPhone = "+91 98902 55667",
+                specialties = listOf("Water Matkas", "Clay Tawas", "Handmade Diyas")
             ),
-            TrainingModule(
-                id = "tm2",
-                title = "eNAM National Agriculture Market Onboarding",
-                titleHi = "ई-नाम राष्ट्रीय कृषि बाजार में ऑनलाइन बोली",
-                titleMr = "ई-नाम (eNAM) राष्ट्रीय बाजारात ऑनलाईन लिलाव",
-                platformTag = "eNAM Govt Portal",
-                duration = "22 mins • 5 Lessons",
-                description = "Master digital e-bidding, quality testing reports, and interstate trade directly from your village APMC mandi yard.",
-                keyTakeaways = listOf(
-                    "Registering with farmer Aadhaar and land passbook",
-                    "Requesting computerized lab assaying & grading",
-                    "Participating in online e-auctions across 1,000+ mandis",
-                    "Direct MSP protection and online payment receipts"
-                ),
-                certificateTitle = "eNAM Digital Trader Practitioner"
-            ),
-            TrainingModule(
-                id = "tm3",
-                title = "Smartphone Product Photography & Branding",
-                titleHi = "मोबाइल से उत्पाद फोटोग्राफी और पैकेजिंग",
-                titleMr = "मोबाईलने आकर्षक फोटो आणि ब्रँडिंग कसे करावे",
-                platformTag = "Smart Packaging",
-                duration = "14 mins • 3 Lessons",
-                description = "Take studio-quality photos of your fresh farm harvest or pottery crafts using natural daylight and a budget smartphone.",
-                keyTakeaways = listOf(
-                    "Using morning sun angles for crisp appetizing colors",
-                    "Clean background tricks using white craft sheets",
-                    "Designing your own village brand label with QR code",
-                    "Writing clear origin and freshness guarantees"
-                ),
-                certificateTitle = "Rural Brand Visualizer"
+            Artisan(
+                id = "art_bld_2",
+                name = "Radhabai Jadhav",
+                craftType = "Bamboo Baskets & Rural Storage",
+                village = "Mehkar",
+                district = "Buldhana",
+                experienceYears = 20,
+                story = "Rural artisan weaving sturdy natural bamboo harvest grain containers and market baskets.",
+                contactPhone = "+91 94211 44332",
+                specialties = listOf("Grain Baskets", "Fruit Trays", "Bamboo Winnowing Fans")
             )
         )
-        _trainingModules.value = initialModules
+        _artisans.value = buldhanaArtisans
 
-        val initialOrders = listOf(
+        // Simple Learn & Grow Training Modules
+        val simpleTraining = listOf(
+            TrainingModule(
+                id = "trn_1",
+                title = "Direct Farm Sales & Pricing",
+                titleHi = "सीधा खेत से बिक्री और सही मूल्य",
+                titleMr = "थेट शेतातून विक्री आणि योग्य बाजारभाव",
+                category = "Direct Farm Sales",
+                duration = "10 mins",
+                description = "Learn how to price your Buldhana produce competitively against local mandi rates to maximize farm profit.",
+                keyTakeaways = listOf(
+                    "Check today's Buldhana mandi rate before listing",
+                    "Keep prices 5-10% below retail to attract buyers fast",
+                    "Offer direct farm pick-up discounts"
+                )
+            ),
+            TrainingModule(
+                id = "trn_2",
+                title = "Packaging Vegetables to Prevent Damage",
+                titleHi = "सब्जियों की सही सुरक्षित पैकेजिंग",
+                titleMr = "भाजीपाला सुरक्षित पॅकिंगच्या सोप्या पद्धती",
+                category = "Packaging",
+                duration = "8 mins",
+                description = "Simple, low-cost village packaging tips for tomatoes, chillies, and grains during local delivery.",
+                keyTakeaways = listOf(
+                    "Ventilated crates for tomatoes to prevent bruising",
+                    "Moisture-proof bags for chillies and coriander",
+                    "Sealed cloth sacks for soybean and pulses"
+                )
+            ),
+            TrainingModule(
+                id = "trn_3",
+                title = "Taking Clean Smartphone Photos of Produce",
+                titleHi = "मोबाइल से साफ फोटो कैसे लें",
+                titleMr = "मोबाईलवर शेतमालाचे स्पष्ट फोटो कसे काढावे",
+                category = "Branding",
+                duration = "6 mins",
+                description = "Use natural morning daylight to click clear pictures of your harvest without special cameras.",
+                keyTakeaways = listOf(
+                    "Click photos in daylight near farm shed",
+                    "Keep background clean and uncluttered",
+                    "Show actual harvested condition"
+                )
+            )
+        )
+        _trainingModules.value = simpleTraining
+
+        // Simple Orders in Buldhana
+        val sampleOrders = listOf(
             Order(
-                id = "GV-89241",
-                orderDate = "21 Sep 2026, 04:15 PM",
-                buyerName = "Sunil Deshmukh",
-                buyerPhone = "+91 98221 00998",
+                id = "#1025",
+                orderDate = "Today, 11:20 AM",
+                buyerName = "Rahul Joshi",
+                buyerPhone = "+91 98220 77889",
                 items = listOf(
-                    CartItem(initialProducts[0], 10.0),
-                    CartItem(initialProducts[1], 5.0)
+                    CartItem(buldhanaProducts[0], 5.0),
+                    CartItem(buldhanaProducts[5], 2.0)
                 ),
-                subtotal = 480.0,
+                subtotal = 190.0,
                 deliveryFee = 0.0,
-                discount = 40.0,
-                totalAmount = 440.0,
-                paymentMethod = "UPI (Google Pay)",
-                paymentStatus = "Paid Successfully",
+                discount = 0.0,
+                totalAmount = 190.0,
+                paymentMethod = "UPI",
+                paymentStatus = "Paid",
                 orderStatus = OrderStatus.CONFIRMED,
-                deliveryAddress = "Flat 402, Shiv Shrushti Apts, College Road, Nashik - 422005",
-                deliveryOtp = "5192"
-            ),
-            Order(
-                id = "GV-89190",
-                orderDate = "19 Sep 2026, 11:30 AM",
-                buyerName = "Priya Sharma",
-                buyerPhone = "+91 97664 12345",
-                items = listOf(
-                    CartItem(initialProducts[4], 1.0)
-                ),
-                subtotal = 1250.0,
-                deliveryFee = 0.0,
-                discount = 100.0,
-                totalAmount = 1150.0,
-                paymentMethod = "RuPay Debit Card",
-                paymentStatus = "Paid Successfully",
-                orderStatus = OrderStatus.DELIVERED,
-                deliveryAddress = "Plot 18, Sahakar Nagar, Pune - 411009",
-                deliveryOtp = "7731"
+                deliveryAddress = "Near Bus Stand, Chikhli, Buldhana - 443201",
+                deliveryOtp = "4826",
+                assignedDeliveryPartner = "Santosh Wankhede"
             )
         )
-        _orders.value = initialOrders
+        _orders.value = sampleOrders
 
-        val initialNotifications = listOf(
+        // Simple Notifications
+        val sampleNotifications = listOf(
             NotificationItem(
-                id = "n1",
-                title = "Mandi Price Alert: Tomatoes ▲ +6.4%",
-                message = "Narayangaon APMC tomato modal rate surged to ₹1,600/quintal due to high interstate demand.",
+                id = "notif_1",
+                title = "Your order #1025 has been confirmed.",
+                message = "The farmer in Chikhli is preparing your fresh harvest.",
                 timestamp = "10 mins ago",
+                type = "ORDER"
+            ),
+            NotificationItem(
+                id = "notif_2",
+                title = "Tomato market rate updated in Buldhana.",
+                message = "Today's rate is ₹25/kg in Buldhana Mandi.",
+                timestamp = "Today, 10:30 AM",
                 type = "RATE"
             ),
             NotificationItem(
-                id = "n2",
-                title = "Weather Alert: Light Showers Forecast",
-                message = "IMD Advisory: Scattered rains expected in Nashik & Pune districts over next 36 hours. Shield open drying grain beds.",
-                timestamp = "2 hours ago",
-                type = "WEATHER"
-            ),
-            NotificationItem(
-                id = "n3",
-                title = "PM-Kisan 19th Installment Credited",
-                message = "Government DBT transfer of ₹2,000 processed to registered bank accounts. Check your passbook or PM-Kisan portal.",
-                timestamp = "Yesterday",
-                type = "SCHEME"
+                id = "notif_3",
+                title = "New soybean harvest available in Khamgaon.",
+                message = "Fresh clean yellow soybean listed at ₹47/kg.",
+                timestamp = "Today, 09:00 AM",
+                type = "ALERT"
             )
         )
-        _notifications.value = initialNotifications
+        _notifications.value = sampleNotifications
     }
 
     // Cart Operations
@@ -529,28 +546,21 @@ class GramVyaparRepository(private val database: AppDatabase) {
         _cart.value = emptyList()
     }
 
-    // Place Order
-    fun placeOrder(
-        paymentMethod: String,
-        address: String,
-        deliveryFee: Double = 0.0,
-        discount: Double = 30.0
-    ): Order {
+    fun placeOrder(paymentMethod: String, address: String): Order {
         val items = _cart.value.toList()
         val subtotal = items.sumOf { it.totalPrice }
-        val total = (subtotal + deliveryFee - discount).coerceAtLeast(0.0)
         val newOrder = Order(
-            id = "GV-" + (10000..99999).random(),
+            id = "#" + (1000..9999).random(),
             orderDate = "Just Now",
             buyerName = _currentUser.value.name,
             buyerPhone = _currentUser.value.phone,
             items = items,
             subtotal = subtotal,
-            deliveryFee = deliveryFee,
-            discount = discount,
-            totalAmount = total,
+            deliveryFee = 0.0,
+            discount = 0.0,
+            totalAmount = subtotal,
             paymentMethod = paymentMethod,
-            paymentStatus = if (paymentMethod.contains("COD")) "Pending on Delivery" else "Paid Successfully",
+            paymentStatus = if (paymentMethod.contains("Cash")) "Pending on Delivery" else "Paid",
             orderStatus = OrderStatus.PLACED,
             deliveryAddress = address,
             deliveryOtp = (1000..9999).random().toString()
@@ -560,19 +570,17 @@ class GramVyaparRepository(private val database: AppDatabase) {
         return newOrder
     }
 
-    // Seller add product
     fun addProduct(
         name: String,
         category: ProductCategory,
         price: Double,
         unit: String,
         stock: Double,
-        description: String,
-        isOrganic: Boolean
+        description: String
     ) {
-        val benchmark = _mandiRates.value.firstOrNull { it.category == category }?.modalPrice?.div(100.0) ?: (price * 1.05)
+        val benchmarkRate = getBuldhanaMarketRateForProduct(name, category)?.modalPrice ?: (price * 1.05)
         val newProduct = Product(
-            id = "p_" + System.currentTimeMillis(),
+            id = "p_bld_" + System.currentTimeMillis(),
             name = name,
             nameHi = name,
             nameMr = name,
@@ -583,30 +591,27 @@ class GramVyaparRepository(private val database: AppDatabase) {
             sellerName = _currentUser.value.name,
             sellerPhone = _currentUser.value.phone,
             village = _currentUser.value.village,
-            district = _currentUser.value.district,
-            isOrganic = isOrganic,
+            district = "Buldhana",
+            isOrganic = false,
             rating = 5.0,
             reviewCount = 1,
-            marketMandiRate = benchmark,
-            description = description,
-            badge = if (price < benchmark) "Best Deal" else null
+            marketMandiRate = benchmarkRate,
+            description = description.ifEmpty { "Fresh local farm produce from Buldhana." }
         )
         _products.value = listOf(newProduct) + _products.value
     }
 
-    // Complete Training Module
-    fun markModuleComplete(moduleId: String) {
-        val list = _trainingModules.value.map {
-            if (it.id == moduleId) it.copy(isCompleted = true) else it
-        }
-        _trainingModules.value = list
-    }
-
-    // Delivery Status update
     fun updateOrderStatus(orderId: String, newStatus: OrderStatus) {
         val list = _orders.value.map {
             if (it.id == orderId) it.copy(orderStatus = newStatus) else it
         }
         _orders.value = list
+    }
+
+    fun markModuleComplete(id: String) {
+        val list = _trainingModules.value.map {
+            if (it.id == id) it.copy(isCompleted = true) else it
+        }
+        _trainingModules.value = list
     }
 }

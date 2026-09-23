@@ -16,8 +16,8 @@ object AppStrings {
 
     private val strings = mapOf(
         // App Identity
-        "app_name" to Trans("GramVyapar", "ग्रामव्यापार", "ग्रामव्यापार"),
-        "app_tagline" to Trans("Rural E-Commerce & Entrepreneurship", "ग्रामीण ई-कॉमर्स और उद्यमिता", "ग्रामीण ई-कॉमर्स आणि उद्योजकता"),
+        "app_name" to Trans("Buldhana Bazaar", "बुलढाणा बाजार", "बुलढाणा बाजार"),
+        "app_tagline" to Trans("Buldhana District Rural Marketplace", "बुलढाणा जिला ग्रामीण बाजार", "बुलढाणा जिल्हा ग्रामीण बाजार"),
 
         // Navigation Tabs - Buyer
         "nav_home" to Trans("Home", "होम", "मुख्यपृष्ठ"),
@@ -45,7 +45,7 @@ object AppStrings {
         "continue_btn" to Trans("Continue", "आगे बढ़ें", "पुढे जा"),
 
         // Auth
-        "login_title" to Trans("Welcome to GramVyapar", "ग्रामव्यापार में स्वागत है", "ग्रामव्यापार मध्ये आपले स्वागत आहे"),
+        "login_title" to Trans("Welcome to Buldhana Bazaar", "बुलढाणा बाजार में स्वागत है", "बुलढाणा बाजार मध्ये आपले स्वागत आहे"),
         "login_subtitle" to Trans("Connecting rural farmers, artisans & buyers directly", "किसानों, कारीगरों और खरीदारों को सीधा जोड़ना", "शेतकरी, कारागीर आणि ग्राहकांना थेट जोडणारे"),
         "email_or_phone" to Trans("Mobile Number or Email", "मोबाइल नंबर या ईमेल", "मोबाईल नंबर किंवा ईमेल"),
         "password" to Trans("Password", "पासवर्ड", "पासवर्ड"),
@@ -53,7 +53,7 @@ object AppStrings {
         "forgot_password" to Trans("Forgot Password?", "पासवर्ड भूल गए?", "पासवर्ड विसरलात?"),
         "login_button" to Trans("Log In", "लॉग इन करें", "लॉग इन करा"),
         "register_prompt" to Trans("New user? Register now", "नया उपयोगकर्ता? पंजीकरण करें", "नवीन वापरकर्ता? नोंदणी करा"),
-        "register_title" to Trans("Create GramVyapar Account", "ग्रामव्यापार खाता बनाएं", "ग्रामव्यापार खाते तयार करा"),
+        "register_title" to Trans("Create Buldhana Bazaar Account", "बुलढाणा बाजार खाता बनाएं", "बुलढाणा बाजार खाते तयार करा"),
         "full_name" to Trans("Full Name", "पूरा नाम", "पूर्ण नाव"),
         "select_role" to Trans("Select Your Role", "अपनी भूमिका चुनें", "आपली भूमिका निवडा"),
         "village" to Trans("Village / Town", "गाँव / कस्बा", "गाव / शहर"),
@@ -106,6 +106,19 @@ object AppStrings {
         "payment_method" to Trans("Payment Method", "भुगतान विधि", "पेमेंट पद्धत"),
         "order_success_title" to Trans("Order Placed Successfully!", "ऑर्डर सफलतापूर्वक दर्ज की गई!", "ऑर्डर यशस्वीरीत्या नोंदवली गेली!"),
         "track_order" to Trans("Track Order", "ऑर्डर ट्रैक करें", "ऑर्डर ट्रॅक करा"),
+
+        // Buldhana District Specific
+        "location_label" to Trans("📍 Buldhana, Maharashtra", "📍 बुलढाणा, महाराष्ट्र", "📍 बुलढाणा, महाराष्ट्र"),
+        "buldhana_district" to Trans("Buldhana District", "बुलढाणा जिला", "बुलढाणा जिल्हा"),
+        "todays_market_rates" to Trans("Today's Market Rates", "आज के मंडी भाव", "आजचे बाजारभाव"),
+        "search_product" to Trans("Search product", "उत्पाद खोजें", "उत्पादन शोधा"),
+        "all_buldhana_markets" to Trans("All Buldhana Markets", "सभी बुलढाणा मंडियां", "सर्व बुलढाणा बाजार समित्या"),
+        "market_rate_unavailable" to Trans("Market rates are temporarily unavailable.", "मंडी भाव अस्थायी रूप से उपलब्ध नहीं हैं।", "बाजारभाव तात्पुरते अनुपलब्ध आहेत."),
+        "last_updated_prefix" to Trans("Last successfully updated:", "अंतिम सफल अपडेट:", "शेवटचे अद्यतन:"),
+        "learn_and_grow" to Trans("📚 Learn & Grow", "📚 सीखें और आगे बढ़ें", "📚 शिका आणि प्रगती करा"),
+        "my_deliveries" to Trans("My Deliveries", "मेरी डिलीवरी", "माझे वितरण"),
+        "seller_dashboard" to Trans("Seller Dashboard", "विक्रेता डैशबोर्ड", "विक्रेता डॅशबोर्ड"),
+        "admin_dashboard" to Trans("Admin Dashboard", "एडमिन डैशबोर्ड", "प्रशासक डॅशबोर्ड"),
 
         // Delivery
         "assigned_deliveries" to Trans("Assigned Deliveries", "सौंपी गई डिलीवरी", "नियुक्त वितरण"),
